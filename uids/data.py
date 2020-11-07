@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 class TableData(pd.DataFrame):
     def __init__(self):
@@ -10,20 +11,18 @@ class ListData(list):
         super().__init__()
 
 
-class Work:
-    def __init__(self, name, obj):
-        self.name = name
-        self.object = obj
-    
-    def __str__(self):
-        super().__str__()
+class Data:
+    def __init__(self, data=None):
+        if isinstance(data, pd.DataFrame):
+            self._dataframe = data
+        elif isinstance(data, np.ndarray):
+            self._dataframe = pd.DataFrame(data)
+        else:
+            self._dataframe = pd.DataFrame()
 
-    @property
-    def name(self):
-        return self.name
+    def __array__(self, dtype=None) -> np.ndarray:
+        return np.asarray(self._dataframe._values, dtype=dtype)
 
-
-class WorkFlow:
-    def __init__(self):
-        self.works = list()
-        self.workflows = list()
+class Datap(pd.DataFrame):
+    def __init__(self, data=None):
+        super().__init__(data)
