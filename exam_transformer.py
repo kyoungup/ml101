@@ -6,37 +6,38 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import numpy as np
-from uids.data import Data, Datap
+from uids.data import Data, Datap, DataMixin
 
 class SimpleTransformer(BaseEstimator, TransformerMixin):
     def __init__(self):
         print('I am Simple')
 
-    def fit(self, x, y=None):
-        print(f'step1 (fit) - {type(x)}')
+    def fit(self, X, y=None):
+        print(f'step1 (fit) - {type(X)}')
         return self
 
-    def transform(self, x):
-        print(f'step1 (transform) - {type(x)}')
-        return x
+    def transform(self, X):
+        print(f'step1 (transform) - {type(X)}')
+        return X
 
-    def inverse_transform(self, x):
-        return x
+    def inverse_transform(self, X):
+        return X
 
 class SimpleTransformer2(BaseEstimator, TransformerMixin):
     def __init__(self):
         print('I am Simple2')
 
-    def fit(self, x, y=None):
-        print(f'step2 (fit) - {type(x)}')
+    def fit(self, X, y=None):
+        print(f'step2 (fit) - {type(X)}')
+
         return self
 
-    def transform(self, x):
-        print(f'step2 (transform) - {type(x)}')
-        return x
+    def transform(self, X):
+        print(f'step2 (transform) - {type(X)}')
+        return X
 
-    def inverse_transform(self, x):
-        return x
+    def inverse_transform(self, X):
+        return X
 
 if __name__ == '__main__':
     datap = Datap(pd.DataFrame({#'pet':      ['cat', 'dog', 'dog', 'fish', 'cat', 'dog', 'cat', 'fish'],
@@ -48,11 +49,11 @@ if __name__ == '__main__':
 
     simple_pipeline = Pipeline([
         ('step1', SimpleTransformer()),
-        ('step1.5', StandardScaler()),
+        ('step1.5', DataMixin(StandardScaler())),
         ('step2', SimpleTransformer2()),
         ('step3', SimpleTransformer2())
         ])
-    result = simple_pipeline.fit(data)
-    print(result)
+    result = simple_pipeline.fit_transform(data)
+    print(result.dataframe)
     
     
