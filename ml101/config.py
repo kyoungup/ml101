@@ -1,4 +1,4 @@
-import uids.matplot_backend
+import ml101.matplot_backend
 from pathlib import Path
 import shutil
 from datetime import datetime
@@ -24,7 +24,7 @@ class Project:
         self.loc_graphs_test.mkdir(exist_ok=True, parents=True)
 
         self.loc_models.mkdir(exist_ok=True, parents=True)
-        self.TEMP.mkdir(exist_ok=True, parents=True)
+        self.loc_results.mkdir(exist_ok=True, parents=True)
 
     def init(self, cwd=None):
         self.cwd = Path(cwd) / self.project if cwd else Path(__file__).parent.parent / self.project
@@ -42,7 +42,7 @@ class Project:
         self.loc_graphs_test = self.loc_graphs / 'test'
 
         self.loc_models = self.cwd / 'models'
-        self.TEMP = self.cwd / 'results'
+        self.loc_results = self.cwd / 'results'
 
         return self
 

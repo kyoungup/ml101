@@ -1,7 +1,7 @@
 import unittest
 import shutil
 from pathlib import Path
-from uids.config import Project
+from ml101.config import Project
 
 
 CWD = Path(__file__).parent
@@ -31,5 +31,6 @@ class TestProejct(unittest.TestCase):
         assert self.ENV.loc_graphs_train == self.ENV.loc_graphs / 'train'
         assert self.ENV.loc_graphs_valid == self.ENV.loc_graphs / 'valid'
         assert self.ENV.loc_graphs_test == self.ENV.loc_graphs / 'test'
-
-        assert self.ENV.TEMP == self.ENV.cwd / 'results'
+        
+        assert self.ENV.loc_models == self.ENV.cwd / 'models'
+        assert self.ENV.loc_results == self.ENV.cwd / 'results'

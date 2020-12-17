@@ -8,7 +8,7 @@ from sklearn.metrics import explained_variance_score, mean_absolute_error
 from sklearn.metrics import mean_squared_error, mean_squared_log_error
 from sklearn.metrics import median_absolute_error, r2_score
 import numpy as np
-import uids.utils as utils
+import ml101.utils as utils
 
 
 class Scores(metaclass=ABCMeta):
@@ -39,8 +39,9 @@ class Scores(metaclass=ABCMeta):
         if self.prefix:
             score_file = utils.insert2filename(score_file, prefix=self.prefix)
 
+        serialized_results = utils.convert4json(results)
         with score_file.open(mode='w') as f:
-            json.dump(results, f, indent=4)
+            json.dump(serialized_results, f, indent=4)
 
 
 class AggScores(Scores, metaclass=ABCMeta):
@@ -77,8 +78,9 @@ class AggScores(Scores, metaclass=ABCMeta):
         if self.prefix:
             aggregate_file = utils.insert2filename(aggregate_file, prefix=self.prefix)
 
+        serialized_results = utils.convert4json(results)
         with aggregate_file.open(mode='w') as f:
-            json.dump(results, f, indent=4)
+            json.dump(serialized_results, f, indent=4)
 
     def load(self):
         pass
@@ -113,7 +115,7 @@ class CScores(Scores):
                                        labels=labels_order, target_names=show_names)
         self.scores[exp_set] = report
 
-        self.confusion_matrices[exp_set] = confusion_matrix(y_true=true_y, y_pred=pred_y, labels=labels_order).tolist()
+        self.confusion_matrices[exp_set] = confusion_matrix(y_true=true_y, y_pred=pred_y, labels=labels_order)
         return report
 
     def acc(self, exp_set=Scores.TEST):
@@ -133,7 +135,7 @@ class CScores(Scores):
         sel = label if label else avg
         return self.scores[exp_set][sel]['f1-score']
 
-    def confusion_matrix(self, exp_set=Scores.TEST):
+    def confusion_matrix(self, exp_set=Scores.TEST) -> np.ndarray:
         return self.confusion_matrices[exp_set]
 
     def report_classes(self, exp_set=Scores.TEST):
@@ -172,14 +174,14 @@ class CAggr(AggScores):
 
             cmatrices = list()
             for score in self.list:
-                cm = pd.DataFrame.from_dict(score.confusion_matrix(exp_set), orient='columns')
+                cm = pd.DataFrame(score.confusion_matrix(exp_set))
                 cmatrices.append(cm)
             df_cms = pd.concat(cmatrices)
             by_row_index = df_cms.groupby(df_cms.index)
             df_means = by_row_index.mean() if len(by_row_index.groups) else pd.DataFrame()
             df_stds = by_row_index.std() if len(by_row_index.groups) else pd.DataFrame()
-            self.confusion_matrices[exp_set] = df_means.to_numpy().tolist()
-            self.confusion_matrices_stds[exp_set] = df_stds.to_numpy().tolist()
+            self.confusion_matrices[exp_set] = df_means.to_numpy()
+            self.confusion_matrices_stds[exp_set] = df_stds.to_numpy()
 
     def save(self):
         results = dict(mean=self.scores, std=self.scores_stds,
@@ -262,14 +264,14 @@ class RAggr(AggScores):
         super().save(results)
 
 
-class ScoresOLD:
+class SimpleScores:
     DEFAULT_NAME = 'default'
     SCORE_FILE = 'scores.json'
     AGGREGATE_FILE = 'aggregation.json'
 
-    def __init__(self, path2file, suffix=None):
+    def __init__(self, path2file, prefix=None):
         self.path2file = Path(path2file).parent if Path(path2file) else Path(path2file)
-        self.suffix = suffix
+        self.prefix = prefix
 
         self.scores = defaultdict(dict)
         self.scores_mean = None
@@ -308,13 +310,35 @@ class ScoresOLD:
         score_file = self.path2file / self.SCORE_FILE
         aggregate_file = self.path2file / self.AGGREGATE_FILE
 
-        if self.suffix:
-            score_file = utils.insert2filename(score_file, prefix=self.suffix)
-            aggregate_file = utils.insert2filename(aggregate_file, prefix=self.suffix)
+        if self.prefix:
+            score_file = utils.insert2filename(score_file, prefix=self.prefix)
+            aggregate_file = utils.insert2filename(aggregate_file, prefix=self.prefix)
 
         with score_file.open(mode='w') as f:
             json.dump(self.scores, f, indent=4)
 
         with aggregate_file.open(mode='w') as f:
-            json.dump({'means': self.score_mean,
-                       'std': self.score_std}, f, indent=4)
+            json.dump({'means': self.scores_mean,
+                       'std': self.scores_std}, f, indent=4)
+
+
+def normalize_matrix(mat: np.ndarray, normalize: str='all'):
+    mat_numpy = mat if isinstance(mat, np.ndarray) else np.array(mat)
+
+    with np.errstate(all='ignore'):
+        normalized_mat = None
+        sum_mat = None
+        if normalize == 'true':
+            sum_mat = mat_numpy.sum(axis=1, keepdims=True)
+            normalized_mat = mat_numpy / sum_mat
+            sum_mat = np.tile(sum_mat, (1, mat_numpy.shape[1]))
+        elif normalize == 'pred':
+            sum_mat = mat_numpy.sum(axis=0, keepdims=True)
+            normalized_mat = mat_numpy / sum_mat
+            sum_mat = np.tile(sum_mat, (mat_numpy.shape[0], 1))
+        elif normalize == 'all':
+            sum_mat = mat_numpy.sum()
+            normalized_mat = mat_numpy / sum_mat
+            sum_mat = np.tile(sum_mat, mat_numpy.shape)
+        normalized_mat = np.nan_to_num(normalized_mat)
+    return normalized_mat, sum_mat

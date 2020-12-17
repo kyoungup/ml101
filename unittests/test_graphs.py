@@ -1,18 +1,21 @@
 import unittest
-import uids.matplot_backend
+import ml101.matplot_backend
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from pathlib import Path
+import ml101.utils as utils
+from ml101.graphs import Graph, Canvas
+from ml101.graphs import RelPlot, Scatter, Heatmap
+from ml101.graphs import ConfusionMatrixGraph
 
-import uids.utils as utils
-from uids.visualize import Graph, Canvas, RelPlot, Scatter
 
 CWD = Path(__file__).parent
 TEMP = CWD / 'temp'
 TEMP.mkdir(exist_ok=True, parents=True)
 
 
-class Test_Canvas(unittest.TestCase):
+class TestCanvas(unittest.TestCase):
     def setUp(self):
         self.penguins = sns.load_dataset('penguins')
         self.tips = sns.load_dataset('tips')
@@ -60,7 +63,7 @@ class Test_Canvas(unittest.TestCase):
         assert Path(self.savefile).exists()
         assert len(self.isavefile) == len(ex1)
 
-class Test_SCatter(unittest.TestCase):
+class TestScatter(unittest.TestCase):
     def setUp(self):
         self.savefile = None
         self.penguins = sns.load_dataset('penguins')
@@ -69,7 +72,6 @@ class Test_SCatter(unittest.TestCase):
     def tearDown(self) -> None:
         if self.savefile and self.savefile.exists():
             self.savefile.unlink()
-        pass
 
     def test_draw(self):
         self.g.draw()
@@ -77,7 +79,37 @@ class Test_SCatter(unittest.TestCase):
         self.savefile = self.g.save(TEMP)
 
 
-class Test_Relplot(unittest.TestCase):
+class TestHeatmap(unittest.TestCase):
+    def setUp(self):
+        self.savefile = None
+        self.data = np.corrcoef(np.random.randn(10, 10))
+        self.g = Heatmap(name='corr', data=self.data, annot=True)
+
+    def tearDown(self) -> None:
+        if self.savefile and self.savefile.exists():
+            self.savefile.unlink()
+
+    def test_graph_heatmap(self):
+        self.g.draw(title='Random Correlation')
+        self.savefile = self.g.save(TEMP)
+
+
+class TestConfusionMatrixGraph(unittest.TestCase):
+    def setUp(self):
+        self.savefile = None
+        self.data = (np.random.rand(10, 10) * 100).astype(int)
+        self.g = ConfusionMatrixGraph(cm=self.data, name='corr')
+
+    def tearDown(self) -> None:
+        if self.savefile and self.savefile.exists():
+            self.savefile.unlink()
+
+    def test_graph_cm(self):
+        self.g.draw(suffix='_Random Correlation')
+        self.savefile = self.g.save(TEMP)
+
+
+class TestRelplot(unittest.TestCase):
     def setUp(self):
         self.savefile = None
         self.tips = sns.load_dataset('tips')

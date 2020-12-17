@@ -3,12 +3,12 @@ from pathlib import Path
 from sklearn.metrics import classification_report
 import numpy as np
 
-from uids.evaluation import Scores
-from uids.evaluation import CScores, CAggr
-from uids.evaluation import RScores, RAggr
-from uids.config import Project
-from uids.evaluation import ScoresOLD
-import uids.utils as utils
+from ml101.evaluation import Scores
+from ml101.evaluation import CScores, CAggr
+from ml101.evaluation import RScores, RAggr
+from ml101.config import Project
+from ml101.evaluation import SimpleScores
+import ml101.utils as utils
 
 
 CWD = Path(__file__).parent
@@ -187,20 +187,19 @@ class TestRAggScores(unittest.TestCase):
         assert (TEMP / ('test_' + RAggr.AGGREGATE_FILE)).exists()
 
 
-class TestScoresOld(unittest.TestCase):
+class TestSimpleScores(unittest.TestCase):
     def setUp(self) -> None:
-        self.ENV = Project(name='test').new(cwd=CWD / 'temp', overwrite=True)
         self.data = dict(row1=dict(train=100.0, valid=95.0, test=90.0),
                         row2=dict(train=10.0, valid=9.5, test=9.0))
         self.data_agg = dict(mean=dict(train=55.0, valid=52.25, test=49.5),
                             std=dict(train=63.639610, valid=60.457630, test=57.275649))
-        self.scores = ScoresOLD(self.ENV.TEMP, suffix='_test')
+        self.scores = SimpleScores(TEMP, prefix='test_')
 
     def tearDown(self) -> None:
-        if (self.ENV.TEMP / 'scores_test.json').exists():
-            (self.ENV.TEMP / 'scores_test.json').unlink()
-        if (self.ENV.TEMP / 'aggregation_test.json').exists():
-            (self.ENV.TEMP / 'aggregation_test.json').unlink()
+        if (TEMP / 'test_scores.json').exists():
+            (TEMP / 'test_scores.json').unlink()
+        if (TEMP / 'test_aggregation.json').exists():
+            (TEMP / 'test_aggregation.json').unlink()
 
     def test_set(self):
         for key, value in self.data.items():
@@ -218,5 +217,5 @@ class TestScoresOld(unittest.TestCase):
 
     def save(self):
         self.scores.save()
-        assert (self.ENV.TEMP / 'scores_test.json').exists()
-        assert (self.ENV.TEMP / 'aggregation_test.json').exists()
+        assert (TEMP / 'test_scores.json').exists()
+        assert (TEMP / 'test_aggregation.json').exists()

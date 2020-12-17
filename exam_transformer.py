@@ -6,7 +6,7 @@ import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import numpy as np
-from uids.data import Data, Datap
+from ml101.data import Data, Datap
 
 class SimpleTransformer(BaseEstimator, TransformerMixin):
     def __init__(self):

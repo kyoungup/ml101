@@ -3,6 +3,7 @@ from pathlib import Path
 import collections
 import numbers
 import sklearn.utils.multiclass as skutils
+import numpy as np
 
 
 def confirm_path(path) -> Path:
@@ -49,3 +50,28 @@ def reverse_dict(src:dict) -> dict:
 def build_idx2labels(*labels: list) -> dict:
     unique = skutils.unique_labels(*labels)
     return {idx: label for idx, label in enumerate(unique)}
+
+
+def update_kwargs(self, default_set: dict, new_set: dict) -> dict:
+    """Update only existing key-values of default set with a new set
+
+    Args:
+        default_set (dict): [default kwargs]
+        new_set (dict): [a set of new values]
+
+    Returns:
+        dict: [description]
+    """
+    kwargs = dict()
+    for arg in default_set:
+        kwargs[arg] = new_set[arg] if arg in new_set else default_set[arg]
+    return kwargs
+
+
+def convert4json(container):
+    if isinstance(container, dict):
+        for key, value in container.items():
+            container[key] = convert4json(value)
+    elif isinstance(container, np.ndarray):
+        return container.tolist()
+    return container

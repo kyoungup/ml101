@@ -1,5 +1,5 @@
 import unittest
-from uids.data import ListData, TableData
+from ml101.data import ListData, TableData
 # import pandas as pd
 
 
