@@ -1,2 +1,2 @@
-# uids
-Universal &amp; Intuitive Data Science
+# ML101
+Machine Learning platform for easy landing
