@@ -1,12 +1,10 @@
 import unittest
 from pathlib import Path
-from sklearn.metrics import classification_report
 import numpy as np
 
 from ml101.evaluation import Scores
 from ml101.evaluation import CScores, CAggr
 from ml101.evaluation import RScores, RAggr
-from ml101.config import Project
 from ml101.evaluation import SimpleScores
 import ml101.utils as utils
 
@@ -23,14 +21,14 @@ class TestCScores(unittest.TestCase):
         labels = {0: 'class 0', 1: 'class 1', 2: 'class 2'}
         self.scores1 = CScores(TEMP, prefix='test1_', idx2label=labels)
         self.report1 = {'accuracy': 0.6,
-                         'class 0': {'f1-score': 0.6666666666666666,'precision': 0.5,'recall': 1.0,'support': 1},
-                         'class 1': {'f1-score': 0.0, 'precision': 0.0, 'recall': 0.0, 'support': 1},
-                         'class 2': {'f1-score': 0.8, 'precision': 1.0, 'recall': 0.6666666666666666, 'support': 3},
-                         'macro avg': {'f1-score': 0.48888888888888893, 'precision': 0.5, 'recall': 0.5555555555555555, 'support': 5},
-                         'weighted avg': {'f1-score': 0.6133333333333334, 'precision': 0.7, 'recall': 0.6, 'support': 5}}
+                        'class 0': {'f1-score': 0.6666666666666666,'precision': 0.5,'recall': 1.0,'support': 1},
+                        'class 1': {'f1-score': 0.0, 'precision': 0.0, 'recall': 0.0, 'support': 1},
+                        'class 2': {'f1-score': 0.8, 'precision': 1.0, 'recall': 0.6666666666666666, 'support': 3},
+                        'macro avg': {'f1-score': 0.48888888888888893, 'precision': 0.5, 'recall': 0.5555555555555555, 'support': 5},
+                        'weighted avg': {'f1-score': 0.6133333333333334, 'precision': 0.7, 'recall': 0.6, 'support': 5}}
         self.report_classes1 = {'class 0': {'f1-score': 0.6666666666666666,'precision': 0.5,'recall': 1.0,'support': 1},
-                         'class 1': {'f1-score': 0.0, 'precision': 0.0, 'recall': 0.0, 'support': 1},
-                         'class 2': {'f1-score': 0.8, 'precision': 1.0, 'recall': 0.6666666666666666, 'support': 3}}
+                        'class 1': {'f1-score': 0.0, 'precision': 0.0, 'recall': 0.0, 'support': 1},
+                        'class 2': {'f1-score': 0.8, 'precision': 1.0, 'recall': 0.6666666666666666, 'support': 3}}
         self.cm1 = np.array([[1, 0, 0],[1, 0, 0],[0, 1, 2]])
 
         self.true_y2 = ["cat", "ant", "cat", "cat", "ant", "bird"]
@@ -45,10 +43,10 @@ class TestCScores(unittest.TestCase):
         self.cm2 = np.array([[2, 0, 0], [0, 0, 1], [1, 0, 2]])
 
     def tearDown(self) -> None:
-        if (TEMP / ('test1_' + CScores.SCORE_FILE)).exists():
-            (TEMP / ('test1_' + CScores.SCORE_FILE)).unlink()
-        if (TEMP / ('test2_' + CScores.SCORE_FILE)).exists():
-            (TEMP / ('test2_' + CScores.SCORE_FILE)).unlink()
+        if (TEMP / ('test1_' + CScores.FILENAME)).exists():
+            (TEMP / ('test1_' + CScores.FILENAME)).unlink()
+        if (TEMP / ('test2_' + CScores.FILENAME)).exists():
+            (TEMP / ('test2_' + CScores.FILENAME)).unlink()
 
     def test_confusion_matrix(self):
         self.scores1.add(self.true_y1, self.pred_y1, Scores.TEST)
@@ -61,20 +59,31 @@ class TestCScores(unittest.TestCase):
     def test_add_save(self):
         self.scores1.add(self.true_y1, self.pred_y1, Scores.TRAIN)
         self.scores1.add(self.true_y1, self.pred_y1, Scores.TEST)
-        assert utils.round_container(self.report1) == utils.round_container(self.scores1.report(Scores.TRAIN))
-        assert utils.round_container(self.report1) == utils.round_container(self.scores1.report(Scores.TEST))
+        assert utils.round_container(self.report1) == utils.round_container(self.scores1.scores(Scores.TRAIN))
+        assert utils.round_container(self.report1) == utils.round_container(self.scores1.scores(Scores.TEST))
 
         self.scores1.save()
-        assert (TEMP / ('test1_' + CScores.SCORE_FILE)).exists()
+        assert (TEMP / ('test1_' + CScores.FILENAME)).exists()
 
     def test_add_by_str_save(self):
         self.scores2.add(self.true_y2, self.pred_y2, Scores.TRAIN)
         self.scores2.add(self.true_y2, self.pred_y2, Scores.TEST)
-        assert utils.round_container(self.report2) == utils.round_container(self.scores2.report(Scores.TRAIN))
-        assert utils.round_container(self.report2) == utils.round_container(self.scores2.report(Scores.TEST))
+        assert utils.round_container(self.report2) == utils.round_container(self.scores2.scores(Scores.TRAIN))
+        assert utils.round_container(self.report2) == utils.round_container(self.scores2.scores(Scores.TEST))
 
         self.scores2.save()
-        assert (TEMP / ('test2_' + CScores.SCORE_FILE)).exists()
+        assert (TEMP / ('test2_' + CScores.FILENAME)).exists()
+
+    def test_load(self):
+        self.scores1.add(self.true_y1, self.pred_y1, Scores.TRAIN)
+        self.scores1.add(self.true_y1, self.pred_y1, Scores.TEST)
+        self.scores1.save()
+
+        scores = CScores(TEMP, prefix='test1_')
+        scores.load()
+        assert utils.round_container(self.report1) == utils.round_container(scores.scores(Scores.TRAIN))
+        assert utils.round_container(self.report1) == utils.round_container(scores.scores(Scores.TEST))
+        assert np.allclose(self.cm1, scores.confusion_matrix(Scores.TEST), atol=0.0001)
 
 
 class TestCAggScores(unittest.TestCase):
@@ -98,22 +107,31 @@ class TestCAggScores(unittest.TestCase):
         self.agg_cm_test = np.array([[1, 0, 0],[1, 0, 0],[0, 1, 2]])
 
     def tearDown(self) -> None:
-        if (TEMP / ('test1_' + CScores.SCORE_FILE)).exists():
-            (TEMP / ('test1_' + CScores.SCORE_FILE)).unlink()
-        if (TEMP / ('test2_' + CScores.SCORE_FILE)).exists():
-            (TEMP / ('test2_' + CScores.SCORE_FILE)).unlink()
-        if (TEMP / ('test_' + CAggr.AGGREGATE_FILE)).exists():
-            (TEMP / ('test_' + CAggr.AGGREGATE_FILE)).unlink()
+        if (TEMP / ('test1_' + CScores.FILENAME)).exists():
+            (TEMP / ('test1_' + CScores.FILENAME)).unlink()
+        if (TEMP / ('test2_' + CScores.FILENAME)).exists():
+            (TEMP / ('test2_' + CScores.FILENAME)).unlink()
+        if (TEMP / ('test_' + CAggr.FILENAME)).exists():
+            (TEMP / ('test_' + CAggr.FILENAME)).unlink()
 
     def test_add_save(self):
         self.agg.add(self.scores1, self.scores2)
-        assert utils.round_container(self.agg_report_test) == utils.round_container(self.agg.scores[Scores.TEST])
+        assert utils.round_container(self.agg_report_test) == utils.round_container(self.agg.metrics[Scores.TEST])
         assert np.allclose(self.agg_cm_test, self.agg.confusion_matrices[Scores.TEST], atol=0.1)
 
         self.agg.save()
-        assert (TEMP / ('test1_' + CScores.SCORE_FILE)).exists()
-        assert (TEMP / ('test2_' + CScores.SCORE_FILE)).exists()
-        assert (TEMP / ('test_' + CAggr.AGGREGATE_FILE)).exists()
+        assert (TEMP / ('test1_' + CScores.FILENAME)).exists()
+        assert (TEMP / ('test2_' + CScores.FILENAME)).exists()
+        assert (TEMP / ('test_' + CAggr.FILENAME)).exists()
+
+    def test_load(self):
+        self.agg.add(self.scores1, self.scores2)
+        self.agg.save()
+
+        agg = CAggr(TEMP, 'test_')
+        agg.load()
+        assert utils.round_container(self.agg_report_test) == utils.round_container(agg.metrics[Scores.TEST])
+        assert np.allclose(self.agg_cm_test, agg.confusion_matrices[Scores.TEST], atol=0.1)
 
 
 class TestRScores(unittest.TestCase):
@@ -134,8 +152,8 @@ class TestRScores(unittest.TestCase):
         # self.report2 = dict(mean_squared_log_error = 0.03973012298459379)
 
     def tearDown(self) -> None:
-        if (TEMP / ('test_' + RScores.SCORE_FILE)).exists():
-            (TEMP / ('test_' + RScores.SCORE_FILE)).unlink()
+        if (TEMP / ('test_' + RScores.FILENAME)).exists():
+            (TEMP / ('test_' + RScores.FILENAME)).unlink()
 
     def test_mean_squared_error(self):
         self.scores1.add(self.true_y1, self.pred_y1, Scores.TEST)
@@ -144,11 +162,20 @@ class TestRScores(unittest.TestCase):
     def test_add_save(self):
         self.scores1.add(self.true_y1, self.pred_y1, Scores.TRAIN)
         self.scores1.add(self.true_y1, self.pred_y1, Scores.TEST)
-        assert utils.round_container(self.report1) == utils.round_container(self.scores1.report(Scores.TRAIN))
-        assert utils.round_container(self.report1) == utils.round_container(self.scores1.report(Scores.TEST))
+        assert utils.round_container(self.report1) == utils.round_container(self.scores1.scores(Scores.TRAIN))
+        assert utils.round_container(self.report1) == utils.round_container(self.scores1.scores(Scores.TEST))
 
         self.scores1.save()
-        assert (TEMP / ('test_' + RScores.SCORE_FILE)).exists()
+        assert (TEMP / ('test_' + RScores.FILENAME)).exists()
+
+    def test_load(self):
+        self.scores1.add(self.true_y1, self.pred_y1, Scores.TRAIN)
+        self.scores1.save()
+
+        scores = RScores(TEMP, prefix='test_')
+        scores.load()
+
+        assert utils.round_container(self.report1) == utils.round_container(scores.scores(Scores.TRAIN))
 
 
 class TestRAggScores(unittest.TestCase):
@@ -170,21 +197,29 @@ class TestRAggScores(unittest.TestCase):
                                 RScores.MSLE: -np.inf}
 
     def tearDown(self) -> None:
-        if (TEMP / ('test1_' + RScores.SCORE_FILE)).exists():
-            (TEMP / ('test1_' + RScores.SCORE_FILE)).unlink()
-        if (TEMP / ('test2_' + RScores.SCORE_FILE)).exists():
-            (TEMP / ('test2_' + RScores.SCORE_FILE)).unlink()
-        if (TEMP / ('test_' + RAggr.AGGREGATE_FILE)).exists():
-            (TEMP / ('test_' + RAggr.AGGREGATE_FILE)).unlink()
+        if (TEMP / ('test1_' + RScores.FILENAME)).exists():
+            (TEMP / ('test1_' + RScores.FILENAME)).unlink()
+        if (TEMP / ('test2_' + RScores.FILENAME)).exists():
+            (TEMP / ('test2_' + RScores.FILENAME)).unlink()
+        if (TEMP / ('test_' + RAggr.FILENAME)).exists():
+            (TEMP / ('test_' + RAggr.FILENAME)).unlink()
 
     def test_add_save(self):
         self.agg.add(self.scores1, self.scores2)
-        assert utils.round_container(self.agg_report_test) == utils.round_container(self.agg.scores[Scores.TEST])
+        assert utils.round_container(self.agg_report_test) == utils.round_container(self.agg.metrics[Scores.TEST])
 
         self.agg.save()
-        assert (TEMP / ('test1_' + RScores.SCORE_FILE)).exists()
-        assert (TEMP / ('test1_' + RScores.SCORE_FILE)).exists()
-        assert (TEMP / ('test_' + RAggr.AGGREGATE_FILE)).exists()
+        assert (TEMP / ('test1_' + RScores.FILENAME)).exists()
+        assert (TEMP / ('test1_' + RScores.FILENAME)).exists()
+        assert (TEMP / ('test_' + RAggr.FILENAME)).exists()
+
+    def test_load(self):
+        self.agg.add(self.scores1, self.scores2)
+        self.agg.save()
+
+        agg = RAggr(TEMP, 'test_')
+        agg.load()
+        assert utils.round_container(self.agg_report_test) == utils.round_container(agg.metrics[Scores.TEST])
 
 
 class TestSimpleScores(unittest.TestCase):

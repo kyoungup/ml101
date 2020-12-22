@@ -4,9 +4,8 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from pathlib import Path
-import ml101.utils as utils
 from ml101.graphs import Graph, Canvas
-from ml101.graphs import RelPlot, Scatter, Heatmap
+from ml101.graphs import RelPlot, Scatter, Line, Heatmap
 from ml101.graphs import ConfusionMatrixGraph
 
 
@@ -68,6 +67,22 @@ class TestScatter(unittest.TestCase):
         self.savefile = None
         self.penguins = sns.load_dataset('penguins')
         self.g = Scatter(name='penguins', data=self.penguins, x="flipper_length_mm", y="bill_length_mm", group="sex")
+
+    def tearDown(self) -> None:
+        if self.savefile and self.savefile.exists():
+            self.savefile.unlink()
+
+    def test_draw(self):
+        self.g.draw()
+        # self.g.show()
+        self.savefile = self.g.save(TEMP)
+
+
+class TestLine(unittest.TestCase):
+    def setUp(self):
+        self.savefile = None
+        self.flights = sns.load_dataset('flights')
+        self.g = Line(name='flights', data=self.flights, x="year", y="passengers", group="month", stype='month')
 
     def tearDown(self) -> None:
         if self.savefile and self.savefile.exists():

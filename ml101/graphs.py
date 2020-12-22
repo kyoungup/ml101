@@ -122,11 +122,13 @@ class Canvas(Graph):
                 self._graphs.append(graph)
             elif isinstance(graph, Graph):
                 self._graphs.append(graph)
+        return self
     
     def remove(self, indices:list):
         for idx in indices:
             del self._graphs[idx]
             del self.axes[idx]
+        return self
 
     def convert(self, **kwargs):
         if 'type' in kwargs:
@@ -134,6 +136,10 @@ class Canvas(Graph):
             if 'data' not in kwargs: kwargs['data'] = self.data
             if type == Graph.SCATTER:
                 return Scatter(**kwargs)
+            elif type == Graph.COUNT:
+                return Count(**kwargs)
+            elif type == Graph.LINE:
+                return Line(**kwargs)
             else:
                 raise ValueError(f'Unsupported Graph Type {type}')
         else:
@@ -147,13 +153,13 @@ class Canvas(Graph):
         title = title.upper() if title else self.name.upper()
         self.fig.suptitle(title, fontsize=self.TITLE_SIZE, fontweight=self.TITLE_WEIGHT)
 
-    def draw(self, col_wrap, sharex=False, sharey=False, title=None):
+    def draw(self, col_wrap, sharex=False, sharey=False, title=None, figsize:tuple=None):
         num_graphs = len(self._graphs)
         num_cols = col_wrap if col_wrap < num_graphs else num_graphs
         num_rows = math.ceil(num_graphs / num_cols)
         self.fig, self.axes = plt.subplots(ncols=num_cols, nrows=num_rows,
                                             sharex=sharex, sharey=sharey,
-                                            squeeze=False)
+                                            squeeze=False, figsize=figsize)
         num_axes = num_cols * num_rows                                           
         if num_graphs != num_axes:
             for idx in range(num_graphs, num_axes):
@@ -201,6 +207,58 @@ class Scatter(Graph):
         if ax is None:
             plt.close()
         return self
+
+class Line(Graph):
+    DEFAULT_FILENAME = 'line.png'
+
+    def __init__(self, data, x, y, group=None, size=None, ax=None, name=None, savepath=None, **kwargs):
+        super().__init__(data=data, type=Graph.LINE, name=name, ax=ax, savepath=savepath)
+        self.x = x
+        self.y = y
+        self.group = group
+        self.size = size
+        # setattr more
+
+    def draw(self, ax=None, title=None, **kwargs):
+        self.ax = ax
+        self.kwargs = dict()
+        # if 'ax' in kwargs: self.kwargs['ax'] = kwargs['ax']
+        self.ax = sns.lineplot(data=self.data, x=self.x, y=self.y, hue=self.group,
+                                    size=self.size,
+                                    ax=self.ax, **self.kwargs)
+        self.set_title(title)
+        
+        if ax is None:
+            plt.close()
+        return self
+
+
+class Count(Graph):
+    DEFAULT_FILENAME = 'count.png'
+
+    def __init__(self, data, x, dir='vertical', group=None, ax=None, name=None, savepath=None, **kwargs):
+        super().__init__(data=data, type=Graph.COUNT, name=name, ax=ax, savepath=savepath)
+        self.x = x
+        self.dir = dir
+        self.group = group
+        # setattr more
+
+    def draw(self, ax=None, title=None, **kwargs):
+        self.ax = ax
+        self.kwargs = dict()
+        # if 'ax' in kwargs: self.kwargs['ax'] = kwargs['ax']
+        if self.dir == 'vertical':
+            self.kwargs['x'] = self.x
+        else:
+            self.kwargs['y'] = self.x
+        self.ax = sns.countplot(data=self.data, hue=self.group,
+                                    ax=self.ax, **self.kwargs)
+        self.set_title(title)
+        
+        if ax is None:
+            plt.close()
+        return self
+
 
 class Heatmap(Graph):
     DEFAULT_FILENAME = 'heatmap.png'
@@ -270,6 +328,7 @@ class RelPlot(Fecet):
         self.set_title()
         return self
 
+
 class ConfusionMatrixGraph(Heatmap):
     DEFAULT_FILENAME = 'confusion_matrix.png'
     NORMALIZE_ALL = 'all'
@@ -303,4 +362,29 @@ class ConfusionMatrixGraph(Heatmap):
         self.data = cm_normalized
         super().draw(title=title, xlabel='Predicted labels', ylabel='True labels', **kwargs)
         self.data = cm
+        return self
+
+    
+class Lines(Line):
+    DEFAULT_FILENAME = 'line.png'
+
+    def __init__(self, data, x, y, group=None, size=None, ax=None, name=None, savepath=None, **kwargs):
+        super().__init__(data=data, type=Graph.LINE, name=name, ax=ax, savepath=savepath)
+        self.x = x
+        self.y = y
+        self.group = group
+        self.size = size
+        # setattr more
+
+    def draw(self, ax=None, title=None, **kwargs):
+        self.ax = ax
+        self.kwargs = dict()
+        # if 'ax' in kwargs: self.kwargs['ax'] = kwargs['ax']
+        self.ax = sns.lineplot(data=self.data, x=self.x, y=self.y, hue=self.group,
+                                    size=self.size,
+                                    ax=self.ax, **self.kwargs)
+        self.set_title(title)
+        
+        if ax is None:
+            plt.close()
         return self

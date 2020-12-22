@@ -6,13 +6,16 @@ import sklearn.utils.multiclass as skutils
 import numpy as np
 
 
-def confirm_path(path) -> Path:
+def confirm_path(fullpath) -> Path:
+    path = None
     filename = None
-    if path:
-        path = Path(path)
-        if path.suffix != '':   # check if it is a file
-            path = path.parent
-            filename = path.name
+    if fullpath:
+        fullpath = Path(fullpath)
+        if fullpath.suffix != '':   # check if it is a file
+            filename = fullpath.name
+            path = fullpath.parent
+        else:
+            path = fullpath
     return path, filename
 
 
@@ -52,7 +55,7 @@ def build_idx2labels(*labels: list) -> dict:
     return {idx: label for idx, label in enumerate(unique)}
 
 
-def update_kwargs(self, default_set: dict, new_set: dict) -> dict:
+def update_kwargs(default_set: dict, new_set: dict) -> dict:
     """Update only existing key-values of default set with a new set
 
     Args:
@@ -72,6 +75,11 @@ def convert4json(container):
     if isinstance(container, dict):
         for key, value in container.items():
             container[key] = convert4json(value)
+    elif isinstance(container, list):
+        for idx, value in enumerate(container):
+            container[idx] = convert4json(value)
     elif isinstance(container, np.ndarray):
         return container.tolist()
+    elif isinstance(container, Path):
+        return str(container)
     return container
