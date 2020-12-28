@@ -4,6 +4,7 @@ import collections
 import numbers
 import sklearn.utils.multiclass as skutils
 import numpy as np
+import platform
 
 
 def confirm_path(fullpath) -> Path:
@@ -83,3 +84,11 @@ def convert4json(container):
     elif isinstance(container, Path):
         return str(container)
     return container
+
+
+def listdir(dirpath) -> list:
+    return [file for file in Path(dirpath).iterdir() if file.is_file()]
+
+
+def is_linux() -> bool:
+    return platform.system() == 'Linux'

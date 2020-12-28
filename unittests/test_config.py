@@ -27,10 +27,11 @@ class TestProejct(unittest.TestCase):
         assert self.ENV.loc_data_valid == self.ENV.loc_data / 'valid'
         assert self.ENV.loc_data_test == self.ENV.loc_data / 'test'
 
-        assert self.ENV.loc_graphs_data == self.ENV.loc_graphs / 'data'
-        assert self.ENV.loc_graphs_train == self.ENV.loc_graphs / 'train'
-        assert self.ENV.loc_graphs_valid == self.ENV.loc_graphs / 'valid'
-        assert self.ENV.loc_graphs_test == self.ENV.loc_graphs / 'test'
+        assert self.ENV.loc_info_raw == self.ENV.loc_info / 'raw'
+        assert self.ENV.loc_info_pure == self.ENV.loc_info / 'pure'
+        assert self.ENV.loc_info_train == self.ENV.loc_info / 'train'
+        assert self.ENV.loc_info_valid == self.ENV.loc_info / 'valid'
+        assert self.ENV.loc_info_test == self.ENV.loc_info / 'test'
         
         assert self.ENV.loc_models == self.ENV.cwd / 'models'
         assert self.ENV.loc_results == self.ENV.cwd / 'results'
