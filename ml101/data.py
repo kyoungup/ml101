@@ -2,18 +2,6 @@ import pandas as pd
 import numpy as np
 from functools import reduce
 from typing import Union
-from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-
-
-class TableData(pd.DataFrame):
-    def __init__(self):
-        super().__init__()
-    
-
-class ListData(list):
-    def __init__(self):
-        super().__init__()
 
 
 class Data:
@@ -23,30 +11,63 @@ class Data:
     It also opens common interfaces to simplify access to the core attributes for data processing.
     """
     def __init__(self, data=None, columns=None):
-        if isinstance(data, pd.DataFrame):
-            self._dataframe = data
-        elif isinstance(data, np.ndarray):
-            self._dataframe = pd.DataFrame(data, columns=columns)
-        elif isinstance(data, Data):
-            self.__deepcopy(data)
-        elif data is None:
-            self._dataframe = pd.DataFrame()
-        else:
-            # TDOD: check the data type and the shape in case of unsupported format.
-            # raise ValueError(data)
-            self._dataframe = pd.DataFrame(data)
-        
+        # TODO: regularize dtypes
+        # TODO: let equals ignore dtypes
+        # TODO: compare rounded values
+        self._dataframe = self.check_dataframe(data, columns)
         self.meta = dict()
         self.label = None
         self.labels = list()
         self.features = list()
 
-    def __deepcopy(self, data:'Data'):
+    @classmethod
+    def check_dataframe(self, data:Union[pd.DataFrame, np.array, 'Data'], columns:list) -> pd.DataFrame:
+        if isinstance(data, pd.DataFrame):
+            return_value = data
+        elif isinstance(data, np.ndarray):
+            return_value = pd.DataFrame(data, columns=columns)
+        elif isinstance(data, Data):
+            return_value = self.deepcopy(data)
+        elif data is None:
+            return_value = pd.DataFrame()
+        else:
+            # TDOD: check the data type and the shape in case of unsupported format.
+            # raise ValueError(data)
+            return_value = pd.DataFrame(data)
+        return return_value
+
+    @classmethod
+    def check_list(self, data:Union[pd.DataFrame, np.array, 'Data']):
+        if isinstance(data, list):
+            return_value = data
+        elif isinstance(data, pd.Series) or isinstance(data, pd.Index):
+            return_value = data.to_list()
+        elif isinstance(data, np.ndarray) and data.ndim == 1:
+            return_value = data.tolist()
+        elif data is None:
+            return_value = list()
+        else:
+            # check the data type and the shape in case of unsupported format.
+            raise ValueError(data)
+        return return_value
+
+    @classmethod
+    def deepcopy(cls, data:'Data') -> pd.DataFrame:
         # TODO: Need to update whenever Data updates
-        self._dataframe = data._dataframe.copy(deep=True)
+        return data._dataframe.copy(deep=True)
 
     def __array__(self, dtype=None) -> np.ndarray:
         return np.asarray(self._dataframe._values, dtype=dtype)
+
+    @classmethod
+    def check_data_type(cls, data) -> 'Data':
+        if isinstance(data, Data):
+            return_value = data
+        elif isinstance(data, pd.DataFrame):
+            return_value = Data(data)
+        else:
+            raise TypeError('Unsupported data type!')
+        return return_value
 
     @property
     def dataset(self) -> pd.DataFrame:
@@ -55,6 +76,11 @@ class Data:
     @property
     def dataframe(self) -> pd.DataFrame:
         return self._dataframe
+
+    @dataframe.setter
+    def dataframe(self, dataframe):
+        assert isinstance(dataframe, pd.DataFrame)
+        self._dataframe = dataframe
 
     @property
     def shape(self) -> tuple:
@@ -86,7 +112,7 @@ class Data:
         if cols is None:
             cols = [slice(None)]
         idx_rows = IndexList(rows, self._dataframe.shape[0])
-        idx_cols = IndexList(cols, self._dataframe.shape[0])
+        idx_cols = IndexList(cols, self._dataframe.shape[1])
         df = self._dataframe.iloc[idx_rows.list, idx_cols.list]
         return Data(df)
 
@@ -114,18 +140,6 @@ class Data:
         nNa = self._dataframe.isna().sum(axis)
         nTotal = self._dataframe.shape[axis]
         return (nNa / nTotal) * 100
-
-
-class CropData(TransformerMixin, BaseEstimator):
-    def __init__(self, rows=None, cols=None):
-        self.rows = rows
-        self.cols = cols
-
-    def fit(self, X, y=None, **fit_params):
-        return self
-
-    def transform(self, X:pd.DataFrame, **transform_params) -> pd.DataFrame:
-        return Data(X).crop(self.rows, self.cols).dataframe
 
 
 class IndexList:
@@ -185,7 +199,7 @@ class IndexList:
         start = self.excel2idx(sli.start) if self.isexcelcolumns(sli.start) else sli.start
         stop = self.excel2idx(sli.stop) if self.isexcelcolumns(sli.stop) else sli.stop
         indices = slice(start, stop, sli.step).indices(self.maxlen)
-        return list(range[indices[0], indices[1], indices[2]])
+        return list(range(indices[0], indices[1], indices[2]))
 
     @property
     def list(self):
@@ -197,46 +211,15 @@ class IndexList:
         self._elements = self.__convert(indices)
         
 
-class DataMixin(BaseEstimator, TransformerMixin):
-    def __init__(self, estimator=None):
-        self.estimator = estimator
+# Tests
+class TableData(pd.DataFrame):
+    def __init__(self):
+        super().__init__()
+    
 
-    def fit(self, X, y=None, **fit_params):
-        # Keeps the original columns because sklearn convert it to numpy, which loses metadata like columns.
-        if hasattr(self, 'columns_') is False or self.columns_ is None:
-            if isinstance(X, Data) or isinstance(X, pd.DataFrame):
-                self.comumns_ = X.columns
-        if isinstance(self.estimator, TransformerMixin):
-            self.estimator.fit(X.dataframe, y, **fit_params)
-        return self
-
-    def transform(self, X, **tranform_params):
-        if isinstance(self.estimator, TransformerMixin):
-            X = self.estimator.transform(X)
-        elif callable(self.estimator):
-            X = self.estimator(X)
-        return Data(X, columns=self.comumns_)
-
-
-class ArrayMixin(BaseEstimator, TransformerMixin):
-    def __init__(self, estimator_func=None, columns=None):
-        self.estimator_func = estimator_func
-
-    def fit(self, X, y=None, **fit_params):
-        # Keeps the original columns because sklearn convert it to numpy, which loses metadata like columns.
-        if hasattr(self, 'columns_') is False or self.columns_ is None:
-            if isinstance(X, Data) or isinstance(X, pd.DataFrame):
-                self.comumns_ = X.columns
-        if isinstance(self.estimator, TransformerMixin):
-            self.estimator.fit(X.dataframe, y, **fit_params)
-        return self
-
-    def transform(self, X, **tranform_params):
-        if isinstance(self.estimator, TransformerMixin):
-            X = self.estimator.transform(X)
-        elif callable(self.estimator):
-            X = self.estimator(X)
-        return Data(X, columns=self.comumns_)
+class ListData(list):
+    def __init__(self):
+        super().__init__()
 
 
 class Datap(pd.DataFrame):

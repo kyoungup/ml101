@@ -1,34 +1,246 @@
 import pandas as pd
+import numpy as np
 from itertools import accumulate
-from typing import Iterator
-
-from sklearn.base import BaseEstimator, TransformerMixin
+from typing import Iterator, Union, Tuple
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, OneHotEncoder
 from ml101.data import Data
 
 
-class Shift(BaseEstimator, TransformerMixin):
-    def __init__(self, columns:list = None, move:int = 1, dropna=True, append=True, inplace=True):
-        self.columns = columns
-        self.move = move
-        self.dropna = dropna
-        self.append = append
+class BaseFilter:
+    def __init__(self, data:Union[Data, pd.DataFrame], inplace=True, dropna=True, append=True):
+        self.data = Data.check_data_type(data)
         self.inplace = inplace
+        self.delna = dropna
+        self.append = append
 
-    def fir(self, X, y=None):
-        # X = check_array(X, accept_sparse=True)
-        self.n_features_ = X.shape[1]
-        # Return the transformer
-        return self
-    
-    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
-        # X = super().transform(X)
-        if self.columns is None:
-            self.columns = X.columns
-        return self.shift(Data(X), self.columns, self.move, self.dropna, self.append, self.inplace)
+    def _postprocess(self, new_df: pd.DataFrame, inplace=True, append=True, axis=1, dropna=True):
+        if append:
+            out_df = pd.concat([self.data.dataframe, new_df], axis=axis)
+        else:
+            out_df = new_df
+
+        if dropna:
+            out_df.dropna(subset=new_df.columns, axis=0, how='all', inplace=True)
+
+        out_df.reset_index(drop=True, inplace=True)
+
+        if inplace:
+            self.data._dataframe = out_df
+            return_value = self
+        else:
+            return_value = out_df
+        return return_value
+
+    @property
+    def Data(self) -> Data:
+        return self.data
+
+    @Data.setter
+    def Data(self, data):
+        self.data = Data.check_data_type(data)
+
+
+class Insertion(BaseFilter):
+
+    def __to_pandas_fillna_values(self, values):
+        if isinstance(values, (int, float, str, dict)):
+            return values
+        if isinstance(values , Tuple):
+            return {name: value for name, value in zip(*values)}
+        
+
+    def fill_na(self, values:Union[int,float,str,dict,Tuple[list,list]], inplace=None):
+        values = self.__to_pandas_fillna_values(values)
+        df = self.data.dataframe
+        new_df = df.fillna(values)
+        
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+    def fill_median(self, cols:list=None, inplace=None):
+        df = self.data.dataframe
+        if cols is None: cols = df.columns # this may be correct to select any NaN columns
+        median = df[cols].median().tolist()
+        return self.fill_na((cols, median), inplace=inplace)
+
+    def fill_mean(self, cols:list=None, inplace=None):
+        df = self.data.dataframe
+        if cols is None: cols = df.columns  # this may be correct to select any NaN columns
+        median = df[cols].mean().tolist()
+        return self.fill_na((cols, median), inplace=inplace)
+
+    def fill_max(self, cols:list=None, inplace=None):
+        df = self.data.dataframe
+        if cols is None: cols = df.columns  # this may be correct to select any NaN columns
+        median = df[cols].max().tolist()
+        return self.fill_na((cols, median), inplace=inplace)
+
+    def fill_min(self, cols:list=None, inplace=None):
+        df = self.data.dataframe
+        if cols is None: cols = df.columns  # this may be correct to select any NaN columns
+        median = df[cols].min().tolist()
+        return self.fill_na((cols, median), inplace=inplace)
+
+    def fill_along(self, method='ffill', axis=0, inplace=None):
+        df = self.data.dataframe
+        new_df = df.fillna(method=method, axis=axis)
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+    def interpolate(self):
+        # TODO: to be implemented
+        pass
+
+
+class Removal(BaseFilter):
+    def drop_na(self, axis=0, how:Union[str, int, float]='all', cols:list=None, inplace=None):
+        if isinstance(how, str):
+            new_df = self.data.dataframe.dropna(axis=axis, how=how, subset=cols, inplace=False)
+        elif isinstance(how, int):
+            new_df = self.data.dataframe.dropna(axis=axis, thresh=how, subset=cols, inplace=False)
+        else:
+            num = self.data.shape[0] * how
+            new_df = self.data.dataframe.dropna(axis=axis, thresh=num, subset=cols, inplace=False)
+
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+    def drop_const(self, axis=0, dropna=False, inplace=None):
+        df = self.data.dataframe
+        if axis == 0:
+            keep_columns = df.columns[df.nunique(dropna=dropna) > 1]
+            new_df = df[keep_columns]
+        else:
+            keep_rows = df.index[df.nunique(axis=1, dropna=dropna) > 1]
+            new_df = df.loc[keep_rows, :]
+
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+    def drop_columns(self, columns: list = None, inplace=None):
+        new_df = self.data.dataframe.drop(columns, axis=1)
+
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+    def drop_rows(self, row_index: list = None, inplace=None):
+        df = self.data.dataframe
+        new_df = self.data.dataframe.drop(df.index[row_index])
+
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+    def drop_outliers(self, columns: list = None, drop_region: str='both', inplace=None):
+        """Removes outliers from
+
+        Args:
+            columns (list, optional): columns to remove outloers. Defaults to None, where outliers are removed from all columns.
+            drop_region (str, optional): Defaults to 'both'
+                both: outliers in both lower and upper part are removed.
+                lower: only the outliers in lower part are removed.
+                upper: only the outliers in upper part are removed.
+        """
+        # TODO: to be extended to other methods
+        if columns is None:
+            columns = self.data.dataframe.columns
+
+        DISCERN_CONSTANT = 1.5
+        Q1 = 0.25
+        Q3 = 0.75
+
+        df = self.data.dataframe[columns]
+        # df.dropna(inplace=self.inplace)     # PKU: 이 작업이 필요할까? 원래 데이터와 달라질 수 있지 않을까?
+        q1 = df.quantile(Q1)
+        q3 = df.quantile(Q3)
+        outlier_margin = (q3-q1) * DISCERN_CONSTANT
+        lower = q1 - outlier_margin
+        upper = q3 + outlier_margin
+
+        # TODO: metric should be more diverse
+        if drop_region == 'both':
+            mask = ~((df < lower) | (df > upper)).any(axis=1)
+        elif drop_region == 'lower':
+            mask = ~(df < lower).any(axis=1)
+        else:
+            mask = ~(df > upper).any(axis=1)
+
+        new_df = self.data.dataframe[mask]
+
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+
+class Conversion(BaseFilter):
+    SCALE_STANDARD = 'standard'
+    SCALE_MINMAX = 'minmax'
+
+    def scale(self, method:str=SCALE_STANDARD, except_cols: list=None, inplace=None):
+        """A function to scale the dataset
+
+        Args:
+            method (str): Scaling method (standardize or minmax scale)
+            except_cols (list, optional): column names to exclude for scaling. Defaults to None.
+        """
+        # TODO: seperate scale methods for each
+        df = self.data.dataframe
+
+        if except_cols is None:
+            except_cols = []
+        
+        colnames = df.columns
+        colnames = colnames[~colnames.isin(except_cols)]
+        
+        num_cols = list()
+        for col in colnames:
+            if df[col].dtype in (np.int, np.float):
+                num_cols.append(col)
+            else:
+                except_cols.append(col)
+        df_num = df[num_cols]
+        df_exc = df[except_cols]
+
+        if method == self.SCALE_STANDARD:
+            self.scaler_ = StandardScaler()
+        elif method == self.SCALE_MINMAX:
+            self.scaler_ = MinMaxScaler()
+        else:
+            raise ValueError('Unsupported Scaling Method!')
+
+        df_scaled = pd.DataFrame(self.scaler_.fit_transform(df_num), index=df.index, columns=df_num.columns)
+        df_scaled = pd.concat([df_scaled, df_exc], axis=1)
+        df_scaled = df_scaled[df.columns]
+
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(df_scaled, inplace=inplace, append=False, dropna=False)
+
+    def onehot(self, cols:list=None, inplace=None):
+        """A function to encode one-hot vector for categorical variables
+
+        Args:
+            cols (list): column names to be encoded, which are categorical
+
+        Returns:
+            pd.DataFrame: dataset after one-hot encoding
+        """
+        df = self.data.dataframe
+        if cols is None: cols = df.columns
+
+        encoded_cols = list()
+        for col in cols:
+            encoder = OneHotEncoder()
+            enc_array = encoder.fit_transform(df[col].to_frame()).toarray()
+            df_enc = pd.DataFrame(enc_array, index = df.index, columns=[col + '_' + str(c) for c in encoder.categories_[0]])
+            encoded_cols.append(df_enc)
+        
+        df_encoded = pd.concat(encoded_cols, axis=1)
+
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(df_encoded, inplace=inplace, append=False, dropna=False)        
+
+    # TODO: Label binarizer should be implemented here.
 
     @classmethod
-    def getshiftednames(cls, columns:list = None, shift:int = 1):
+    def get_shifted_names(cls, columns: list, shift: int = 1):
         newnames = list()
         for colname in columns:
             suffix = f'(t{shift})' if shift < 0 else f'(t+{shift})'
@@ -36,63 +248,28 @@ class Shift(BaseEstimator, TransformerMixin):
             newnames.append(newname)
         return newnames
 
-    @classmethod
-    def shift(cls, data:Data, columns:list = None, move:int = 1, dropna=True, append=True, inplace=True) -> Data:
-        assert isinstance(columns, list)
-        df = data._dataframe
+    def shift(self, columns: list = None, move: int = 1, dropna=None, append=None, inplace=None) -> Union[pd.DataFrame, 'DataFilter']:
+        columns = Data.check_list(columns)
+
+        df = self.data.dataframe
 
         if move != 0:
-            newnames = cls.getshiftednames(columns, move)
+            newnames = self.get_shifted_names(columns, move)
             shifted_df = df[columns].shift(move)
             shifted_df.columns = newnames
         else:
             shifted_df = pd.DataFrame()
 
-        if append:
-            out_df = pd.concat([df, shifted_df], axis=1)
-        else:
-            out_df = shifted_df
+        if dropna is None: dropna = self.delna
+        if append is None: append = self.append
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(shifted_df, inplace=inplace, append=append, dropna=dropna)
 
-        if inplace:
-            data.dataframe = out_df
-        else:
-            data = Data(df)
-
-        if dropna:
-            data.dataframe.dropna(inplace=True)
-
-        data.dataframe.reset_index(drop=True, inplace=True)
-
-        return data
-
-    def _get_selection(self, df):
-        assert isinstance(df, pd.DataFrame)
-        return df[self.columns]
-
-
-class SetPeriod(BaseEstimator, TransformerMixin):
-    def __init__(self, columns:list=None, outs:list=None, labelon=1, append=True, inplace=True):
-        self.columns = columns
-        self.outs = outs
-        self.labelon = labelon
-        self.append = append
-        self.inplace = inplace
-
-    def fit(self, X, y=None):
-        self.n_features_ = X.shape[1]
-        return self
-
-    def transform(self, X:pd.DataFrame) -> pd.DataFrame:
-        outs = list()
-        for col, out in zip(self.columns, self.outs):
-            outs.append(pd.DataFrame(self.period(X[col], self.labelon), columns=[out]))
-
-        if self.append:
-            result = pd.concat([X] + outs, axis=1)
-        else:
-            result = pd.concat(outs, axis=1)
-        # result = Data(result)
-        return result
+    @classmethod
+    def cutoffs(cls, sr:pd.Series):
+        newstart = sr.where(sr == 0).first_valid_index() if sr.iloc[0] == 1 else 0
+        newend = sr.where(sr == 0).last_valid_index() if sr.iloc[-1] == 1 else (sr.size -1)
+        return (newstart, newend)
 
     @classmethod
     def countup(cls, sr:list, labelon=1) -> Iterator:
@@ -104,181 +281,201 @@ class SetPeriod(BaseEstimator, TransformerMixin):
         reversed_period = list(accumulate(reversed(cntup), lambda acc, cur: max(acc, cur) if cur != 0 else 0))
         return reversed(reversed_period)
 
+    def set_period(self, columns: list, new_columns:list=None, labelon: int = 1, append=None, inplace=None) -> Union[pd.DataFrame, 'DataFilter']:
+        columns = Data.check_list(columns)
 
-class Preprocessor:
-    def __init__(self, data:pd.DataFrame, inplace=True):
-        self.data = data
-        self.inplace = inplace
-
-    def fill(self, cols):
-        pass
-
-    def fillmedian(self, cols:list):
         df = self.data.dataframe
-        median = df[cols].median().tolist()
-        self.fillna(cols, median)
+        if new_columns is None:
+            new_columns = [colname + '_period' for colname in columns]
 
-    def fillna(self, cols: list, values: list, colvals: dict = None):
-        df = self.data.dataframe
-        if colvals is not None:
-            for col, value in colvals.items():
-                df[col].fillna(value, inplace=True)
-        else:
-            if len(values) > 1:
-                assert len(cols) == len(values)
-                for idx, value in enumerate(values):
-                    df[cols[idx]].fillna(value, inplace=True)
-            else:
-                df[cols[0]].fillna(values[0], inplace=True)
+        period_df = pd.DataFrame()
+        for col, newcol in zip(columns, new_columns):
+            period_df[newcol] = list(self.period(df[col]))
 
-    def dropna(self):
-        self.data.dataframe.drop(inplace=self.inplace)
-        return self
-
-    def dropconst(self):
-        df = self.data.dataframe
-        keep_columns = df.columns[df.nunique() > 1]
-        self.data.dataframe = df[keep_columns]
-        return self
-
-    def drop_columns(self, columns: list = None):
-        self.data.datafreame.drop(columns, axis=1, inplace=self.inpalce)
-        return self
-
-    def drop_rows(self, row_index: list = None):
-        df = self.data.dateframe
-        self.data.dataframe.drop(df.index[row_index], inplace=self.inplace)
-        return self
-
-    def drop_outliers(self, columns: list = None, drop_region: str='both'):
-        """Removes outliers from
-
-        Args:
-            columns (list, optional): columns to remove outloers. Defaults to None, where outliers are removed from all columns.
-            drop_region (str, optional): Defaults to 'both'
-                both: outliers in both lower and upper part are removed.
-                lower: only the outliers in lower part are removed.
-                upper: only the outliers in upper part are removed.
-        """
-        if columns is None:
-            columns = self.data.dataframe.columns
-
-        DISCERN_CONSTANT = 1.5
-        Q1 = 0.25
-        Q3 = 0.75
-
-        df = self.data.dataframe[columns]
-        df.dropna(inplace=self.inplace)
-        q1 = df.quantile(Q1)
-        q3 = df.quantile(Q3)
-        outlier_margin = (q3-q1) * DISCERN_CONSTANT
-        lower = q1 - outlier_margin
-        upper = q3 + outlier_margin
-        if drop_region == 'both':
-            mask = (df < upper) & (df > lower)
-        elif drop_region == 'lower':
-            mask = df > lower
-        else:
-            mask = df < upper
-
-        df = df[mask]
-        self.data.dataframe = self.data.dataframe.iloc[df.index]
-        return self
-
-    def getshiftednames(self, columns: list = None, shift: int = 1):
-        newnames = list()
-        for colname in columns:
-            suffix = f'(t{shift})' if shift < 0 else f'(t+{shift})'
-            newname = colname + suffix
-            newnames.append(newname)
-        return newnames
-
-    def shift(self, columns: list = None, shift: int = 1, dropna=True, append=True, inplace=True):
-        assert isinstance(columns, list)
-
-        if append:
-            out_df = pd.DataFrame(self.data.dataframe)
-        else:
-            out_df = pd.DataFrame()
-
-        if shift != 0:
-            df = self.data.dataframe
-            newnames = self.getshiftedname(columns, shift)
-            for colname, newname in zip(columns, newnames):
-                out_df[newname] = df[colname].shift(shift)
-            
-            if dropna:
-                out_df = out_df.dropna().reset_index()
-        if inplace:
-            self.data.dataframe = out_df
-        
-        return out_df
-
-    @classmethod
-    def cutoffs(cls, sr:pd.Series):
-        newstart = sr.where(sr == 0).first_valid_index() if sr.iloc[0] == 1 else 0
-        newend = sr.where(sr == 0).last_valid_index() if sr.iloc[-1] == 1 else (sr.size -1)
-
-        return (newstart, newend)
+        if append is None: append = self.append
+        if inplace is None: inplace = self.inplace
+        return self._postprocess(period_df, inplace=inplace, append=append, dropna=False)
 
 
-class Conversion:
-    def __init__(self, data: pd.DataFrame):
-        self.dataset = data
+class DataFilter(Insertion, Removal, Conversion):
+    pass
 
-    def scale(self, method, except_cols: list=None):
-        """A function to scale the dataset
+# class DataFilter:
+#     def __init__(self, data:Union[Data, pd.DataFrame], inplace=True, dropna=True, append=True):
+#         self.data = Data.check_data_type(data)
+#         self.inplace = inplace
+#         self.delna = dropna
+#         self.append = append
 
-        Args:
-            method (str): Scaling method (standardize or minmax scale)
-            except_cols (list, optional): column names to exclude for scaling. Defaults to None.
-        """
-        if except_cols is None:
-            except_cols = []
+#     def __postprocess(self, new_df: pd.DataFrame, inplace=True, append=True, axis=1, dropna=True):
+#         if append:
+#             out_df = pd.concat([self.data.dataframe, new_df], axis=axis)
+#         else:
+#             out_df = new_df
 
-        colname = self.dataset.columns
+#         if dropna:
+#             out_df.dropna(subset=new_df.columns, axis=0, how='all', inplace=True)
 
-        for col in colname:
-            if self.dataset[col].dtype == 'int64' or self.dataset[col].dtype == 'float64':
-                pass
-            else:
-                if except_cols.count(col) == 0:
-                    except_cols.append(col)
+#         out_df.reset_index(drop=True, inplace=True)
 
-        if len(except_cols) > 0:
-            df_num = self.dataset.loc[:, ~self.dataset.columns.isin(except_cols)]
-            df_exc = self.dataset.loc[:, self.dataset.columns.isin(except_cols)]
-        else:
-            df_num = self.dataset.copy()
-            df_exc = pd.DataFrame(index=self.dataset.index)
+#         if inplace:
+#             self.data._dataframe = out_df
+#             return_value = self
+#         else:
+#             return_value = out_df
+#         return return_value
 
-        if method == 'Standard':
-            scaler = StandardScaler()
-        elif method == 'MinMax':
-            scaler = MinMaxScaler()
-        else:
-            raise ValueError('Unsupported Scaling Method!')
+#     @property
+#     def Data(self) -> Data:
+#         return self.data
 
-        df_scaled = pd.DataFrame(scaler.fit_transform(df_num), index=self.dataset.index, columns=df_num.columns)
-        df_scaled = pd.concat([df_scaled, df_exc], axis=1)
-        df_scaled = df_scaled[colname]
+#     @Data.setter
+#     def Data(self, data):
+#         self.data = Data.check_data_type(data)
 
-        return df_scaled, scaler
+#     def fill(self, cols):
+#         pass
 
-    def onehot(self, categorical_variables):
-        """A function to encode one-hot vector for categorical variables
+#     def fillmedian(self, cols:list):
+#         df = self.data.dataframe
+#         median = df[cols].median().tolist()
+#         self.fillna(cols, median)
 
-        Args:
-            categorical_variables (list): column names to be encoded
+#     def fillna(self, cols: list, values: list, colvals: dict = None):
+#         df = self.data.dataframe
+#         if colvals is not None:
+#             for col, value in colvals.items():
+#                 df[col].fillna(value, inplace=True)
+#         else:
+#             if len(values) > 1:
+#                 assert len(cols) == len(values)
+#                 for idx, value in enumerate(values):
+#                     df[cols[idx]].fillna(value, inplace=True)
+#             else:
+#                 df[cols[0]].fillna(values[0], inplace=True)
 
-        Returns:
-            pd.DataFrame: dataset after one-hot encoding
-        """
-        df_encoded = self.dataset.copy()
-        for cat in categorical_variables:
-            enc = OneHotEncoder()
-            df_enc = enc.fit_transform(self.dataset[cat].to_frame()).toarray()
-            df_enc = pd.DataFrame(df_enc, index = self.dataset.index, columns=[cat + '_' + str(c) for c in enc.categories_[0]])
-            df_encoded = pd.concat([df_encoded, df_enc], axis=1)
+#     def dropna(self, axis=0, how='all', inplace=None):
+#         new_df = self.data.dataframe.dropna(axis=axis, how=how, inplace=False)
 
-        return df_encoded
+#         if inplace is None: inplace = self.inplace
+#         return self.__postprocess(new_df, inplace=False, append=False, dropna=False)
+
+#     def dropconst(self, inplace=None):
+#         df = self.data.dataframe
+#         keep_columns = df.columns[df.nunique() > 1]
+#         new_df = df[keep_columns]
+
+#         if inplace is None: inplace = self.inplace
+#         return self.__postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+#     def drop_columns(self, columns: list = None, inplace=None):
+#         new_df = self.data.datafreame.drop(columns, axis=1)
+
+#         if inplace is None: inplace = self.inplace
+#         return self.__postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+#     def drop_rows(self, row_index: list = None, inplace=None):
+#         df = self.data.dataframe
+#         new_df = self.data.dataframe.drop(df.index[row_index], inplace=self.inplace)
+
+#         if inplace is None: inplace = self.inplace
+#         return self.__postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+#     def drop_outliers(self, columns: list = None, drop_region: str='both', inplace=None):
+#         """Removes outliers from
+
+#         Args:
+#             columns (list, optional): columns to remove outloers. Defaults to None, where outliers are removed from all columns.
+#             drop_region (str, optional): Defaults to 'both'
+#                 both: outliers in both lower and upper part are removed.
+#                 lower: only the outliers in lower part are removed.
+#                 upper: only the outliers in upper part are removed.
+#         """
+#         if columns is None:
+#             columns = self.data.dataframe.columns
+
+#         DISCERN_CONSTANT = 1.5
+#         Q1 = 0.25
+#         Q3 = 0.75
+
+#         df = self.data.dataframe[columns]
+#         df.dropna(inplace=self.inplace)     # PKU: 이 작업이 필요할까? 원래 데이터와 달라질 수 있지 않을까?
+#         q1 = df.quantile(Q1)
+#         q3 = df.quantile(Q3)
+#         outlier_margin = (q3-q1) * DISCERN_CONSTANT
+#         lower = q1 - outlier_margin
+#         upper = q3 + outlier_margin
+#         if drop_region == 'both':
+#             mask = (df < upper) & (df > lower)
+#         elif drop_region == 'lower':
+#             mask = df > lower
+#         else:
+#             mask = df < upper
+
+#         # new_df = new_df[mask]
+#         # self.data.dataframe = self.data.dataframe.iloc[mask]
+#         new_df = self.data.dataframe.iloc[mask]
+
+#         if inplace is None: inplace = self.inplace
+#         return self.__postprocess(new_df, inplace=inplace, append=False, dropna=False)
+
+#     @classmethod
+#     def get_shifted_names(cls, columns: list, shift: int = 1):
+#         newnames = list()
+#         for colname in columns:
+#             suffix = f'(t{shift})' if shift < 0 else f'(t+{shift})'
+#             newname = colname + suffix
+#             newnames.append(newname)
+#         return newnames
+
+#     def shift(self, columns: list = None, move: int = 1, dropna=None, append=None, inplace=None) -> Union[pd.DataFrame, 'DataFilter']:
+#         columns = Data.check_list(columns)
+
+#         df = self.data.dataframe
+
+#         if move != 0:
+#             newnames = self.get_shifted_names(columns, move)
+#             shifted_df = df[columns].shift(move)
+#             shifted_df.columns = newnames
+#         else:
+#             shifted_df = pd.DataFrame()
+
+#         if dropna is None: dropna = self.delna
+#         if append is None: append = self.append
+#         if inplace is None: inplace = self.inplace
+#         return self.__postprocess(shifted_df, inplace=inplace, append=append, dropna=dropna)
+
+#     @classmethod
+#     def cutoffs(cls, sr:pd.Series):
+#         newstart = sr.where(sr == 0).first_valid_index() if sr.iloc[0] == 1 else 0
+#         newend = sr.where(sr == 0).last_valid_index() if sr.iloc[-1] == 1 else (sr.size -1)
+#         return (newstart, newend)
+
+#     @classmethod
+#     def countup(cls, sr:list, labelon=1) -> Iterator:
+#         return accumulate(sr, lambda acc, cur: acc + 1 if cur == labelon else 0)
+
+#     @classmethod
+#     def period(cls, sr:list, labelon=1) -> Iterator:
+#         cntup = list(cls.countup(sr, labelon))
+#         reversed_period = list(accumulate(reversed(cntup), lambda acc, cur: max(acc, cur) if cur != 0 else 0))
+#         return reversed(reversed_period)
+
+#     @classmethod
+#     def add_suffix(cls, columns: list, suffix:str='_l'):
+#         return [colname + suffix + str(idx) for idx, colname in enumerate(columns)]
+
+#     def set_period(self, columns: list, new_columns:list=None, labelon: int = 1, append=None, inplace=None) -> Union[pd.DataFrame, 'DataFilter']:
+#         columns = Data.check_list(columns)
+
+#         df = self.data.dataframe
+#         if new_columns is None:
+#             new_columns = self.add_suffix(columns)
+
+#         period_df = pd.DataFrame()
+#         for col, newcol in zip(columns, new_columns):
+#             period_df[newcol] = list(self.period(df[col]))
+
+#         if append is None: append = self.append
+#         if inplace is None: inplace = self.inplace
+#         return self.__postprocess(period_df, inplace=inplace, append=append, dropna=False)

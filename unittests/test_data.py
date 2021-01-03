@@ -1,7 +1,6 @@
 import unittest
-from ml101.serialize import StreamFactory
+from ml101.serialize import Stream
 from ml101.data import Data, IndexList
-from ml101.data import ListData, TableData
 from pathlib import Path
 
 CWD = Path(__file__).parent
@@ -10,9 +9,9 @@ TEMP.mkdir(exist_ok=True, parents=True)
 
 
 class TestData(unittest.TestCase):
-    def setup(self) -> None:
-        filepath = CWD / 'data' / 'sample.tsv'
-        self.stream = StreamFactory.open(filepath)
+    def setUp(self) -> None:
+        filepath = CWD / 'data' / 'stream_sample.tsv'
+        self.stream = Stream.open(filepath)
         self.data = self.stream.read(**{'header': 4})
 
     def tearDown(self):
@@ -32,16 +31,16 @@ class TestData(unittest.TestCase):
         assert newdata.equals(self.data)
 
     def test_crop(self):
-        rows = [0, 1, slice(4, 8), slice(8, 10), 12]
+        rows = [0, 1, slice(4, 8), slice(8, 9), 11]
         cols = [slice(0, 3), 4, 6]
         newdata = self.data.crop(rows, cols)
-        assert newdata.shape == (2 + (8-4) + (10-8) + 1, (3-0) + 2)
+        assert newdata.shape == (2 + (8-4) + (9-8) + 1, (3-0) + 2)
 
     def test_crop_row(self):
-        rows = [0, 1, slice(4, 8), slice(8, 10), 12]
+        rows = [0, 1, slice(4, 8), slice(8, 9), 11]
         cols = None #[slice(0, 3), 4, 6]
         newdata = self.data.crop(rows, cols)
-        assert newdata.shape == (2 + (8-4) + (10-8) + 1, self.data.shape[1])
+        assert newdata.shape == (2 + (8-4) + (9-8) + 1, self.data.shape[1])
 
     def test_head(self):
         assert self.data.head(10).shape[0] == 10
@@ -53,33 +52,33 @@ class TestData(unittest.TestCase):
         assert len(self.data.columns) == self.data.shape[1]
 
     def test_na_ratio(self):
-        assert (self.data.na_ratio('row') > 0).sum() == 0
+        assert (self.data.na_ratio('row') > 0).sum() == 6
 
 
 class TestIndexList(unittest.TestCase):
     def setUp(self) -> None:
         self.maxlen = 1000
 
-        filepath = CWD / 'data' / 'sample.tsv'
-        self.stream = StreamFactory.open(filepath)
+        filepath = CWD / 'data' / 'stream_sample.tsv'
+        self.stream = Stream.open(filepath)
         self.data = self.stream.read(**{'header': 4})
 
     def tearDown(self) -> None:
         pass
 
     def test_idx_by_int(self):
-        index = [0, 1, slice(4, 8), slice(8, 10), 12, -1]
-        index_gt = [0, 1, 4, 5, 6, 7, 8, 9, 12, self.maxlen-1]
+        index = [0, 1, slice(4, 8), slice(8, 9), 11, -1]
+        index_gt = [0, 1, 4, 5, 6, 7, 8, 11, self.maxlen-1]
         assert IndexList(index, self.maxlen).list == index_gt
 
     def test_idx_by_excel(self):
-        index = ['A', 'C', slice('D', 'F'), 'AA', 'ZZ']
-        index_gt = [0, 2, 3, 4, 26, 701]
+        index = ['A', 'C', slice('D', 'F'), 'J']
+        index_gt = [0, 2, 3, 4, 9]
         assert IndexList(index, self.maxlen).list == index_gt
 
     def test_idx_by_name(self):
-        index = ['TimeStamp', 'N1_TI10129B', 'N1_TI10129C', 'S/D Time', 'N1_PI101C', 'D/C Time']
-        index_gt = [0, 2, 3, 6, 11, 16]
+        index = ['name0', 'toy1', 'born2']
+        index_gt = [0, 4, 8]
         assert IndexList(index, self.data.columns).list == index_gt
 
     def test_idx_by_none(self):
@@ -93,16 +92,4 @@ class TestIndexList(unittest.TestCase):
         index_gt = list(range(len(alphabets) * 4))
         idx = [IndexList.excel2idx(elem) for elem in excels]
         assert idx == index_gt
-        
-
-class Test_Data(unittest.TestCase):
-
-    def test_dummy(self):
-        pass
-
-    # def test_table(self):
-    #     tb = TableData()
-
-    # def test_list(self):
-    #     ld = ListData()
         

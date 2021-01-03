@@ -1,6 +1,5 @@
 import unittest
-from warnings import showwarning
-from ml101.serialize import StreamFactory
+from ml101.serialize import Stream
 from pathlib import Path
 
 CWD = Path(__file__).parent
@@ -10,12 +9,12 @@ TEMP.mkdir(exist_ok=True, parents=True)
 
 class TestExcel(unittest.TestCase):
     def setUp(self) -> None:
-        filepath = CWD / 'data' / 'sample.xlsx'
-        self.readstream = StreamFactory.open(filepath)
+        filepath = CWD / 'data' / 'stream_sample.xlsx'
+        self.readstream = Stream.open(filepath)
         self.readoption = {'sheet_name': 'DC', 'header': 4}
 
         self.tempfile = TEMP / 'sample_temp.xlsx'
-        self.writestream = StreamFactory.open(self.tempfile)
+        self.writestream = Stream.open(self.tempfile)
 
     def tearDown(self) -> None:
         if self.tempfile.exists():
@@ -23,7 +22,7 @@ class TestExcel(unittest.TestCase):
 
     def test_read(self):
         data = self.readstream.read(**self.readoption)
-        assert data.shape == (8 - 4, ord('C') - ord('A') + 1)
+        assert data.shape == (16 - 4, ord('M') - ord('A') + 1)
 
     def test_write(self):
         data_gt = self.readstream.read(**self.readoption)
@@ -49,12 +48,12 @@ class TestExcel(unittest.TestCase):
 
 class TestCSV(unittest.TestCase):
     def setUp(self) -> None:
-        filepath = CWD / 'data' / 'sample.csv'
-        self.readstream = StreamFactory.open(filepath)
+        filepath = CWD / 'data' / 'stream_sample.csv'
+        self.readstream = Stream.open(filepath)
         self.readoption = {'header': 4}
 
         self.tempfile = TEMP / 'sample_temp.csv'
-        self.writestream = StreamFactory.open(self.tempfile)
+        self.writestream = Stream.open(self.tempfile)
 
     def tearDown(self) -> None:
         if Path(self.tempfile).exists():
@@ -62,7 +61,7 @@ class TestCSV(unittest.TestCase):
 
     def test_read(self):
         data = self.readstream.read(**self.readoption)
-        assert data.shape == (8 - 4, 3)
+        assert data.shape == (16 - 4, 13)
 
     def test_write(self):
         data_gt = self.readstream.read(**self.readoption)
@@ -73,12 +72,12 @@ class TestCSV(unittest.TestCase):
 
 class TestTSV(unittest.TestCase):
     def setUp(self) -> None:
-        filepath = CWD / 'data' / 'sample.tsv'
-        self.readstream = StreamFactory.open(filepath)
+        filepath = CWD / 'data' / 'stream_sample.tsv'
+        self.readstream = Stream.open(filepath)
         self.readoption = {'header': 4}
 
         self.tempfile = TEMP / 'sample_temp.tsv'
-        self.writestream = StreamFactory.open(self.tempfile)
+        self.writestream = Stream.open(self.tempfile)
 
     def tearDown(self) -> None:
         if Path(self.tempfile).exists():
@@ -86,7 +85,7 @@ class TestTSV(unittest.TestCase):
 
     def test_read(self):
         data = self.readstream.read(**self.readoption)
-        assert data.shape == (8 - 4, 3)
+        assert data.shape == (16 - 4, 13)
 
     def test_write(self):
         data_gt = self.readstream.read(**self.readoption)
@@ -97,11 +96,11 @@ class TestTSV(unittest.TestCase):
 
 class TestPickle(unittest.TestCase):
     def setUp(self) -> None:
-        filepath = CWD / 'data' / 'sample.pkl'
-        self.readstream = StreamFactory.open(filepath)
+        filepath = CWD / 'data' / 'stream_sample.pkl'
+        self.readstream = Stream.open(filepath)
 
         self.tempfile = CWD / 'data' / 'sample_temp.pkl'
-        self.writestream = StreamFactory.open(self.tempfile)
+        self.writestream = Stream.open(self.tempfile)
 
     def tearDown(self) -> None:
         if Path(self.tempfile).exists():
@@ -109,7 +108,7 @@ class TestPickle(unittest.TestCase):
 
     def test_read(self):
         data = self.readstream.read()
-        assert data.shape == (8 - 4, 3)
+        assert data.shape == (16 - 4, 13)
 
     def test_write(self):
         data_gt = self.readstream.read()
