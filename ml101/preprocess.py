@@ -15,14 +15,20 @@ class BaseFilter:
 
     def _postprocess(self, new_df: pd.DataFrame, inplace=True, append=True, axis=1, dropna=True):
         if append:
-            out_df = pd.concat([self.data.dataframe, new_df], axis=axis)
+            # TODO: reconsider indices. Keep data.dataframe.index?
+            if axis:
+                dfs = [self.data.dataframe.reset_index(drop=True),
+                                    new_df.reset_index(drop=True)]
+            else:
+                dfs = [self.data.dataframe, new_df]
+            out_df = pd.concat(dfs, axis=axis)
         else:
             out_df = new_df
 
         if dropna:
             out_df.dropna(subset=new_df.columns, axis=0, how='all', inplace=True)
 
-        out_df.reset_index(drop=True, inplace=True)
+        # out_df.reset_index(drop=True, inplace=True)
 
         if inplace:
             self.data._dataframe = out_df

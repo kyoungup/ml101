@@ -5,6 +5,8 @@ import numbers
 import sklearn.utils.multiclass as skutils
 import numpy as np
 import platform
+import shutil
+import os
 
 
 def confirm_path(fullpath) -> Path:
@@ -92,3 +94,19 @@ def listdir(dirpath) -> list:
 
 def is_linux() -> bool:
     return platform.system() == 'Linux'
+
+
+def copy(srcfile:Path, dst:Path, symbolic=False) -> Path:
+    srcfile = Path(srcfile)
+    dst = Path(dst)
+    if symbolic and is_linux():
+        dstfile = dst / srcfile.name if dst.is_dir() else dst
+        if srcfile.is_symlink():
+            srcfile = (srcfile / os.readlink(srcfile)).resolve()
+        rel_path_src = os.path.relpath(srcfile, dst)
+        if (dstfile.is_symlink() or dstfile.exists()): dstfile.unlink()
+        dstfile.symlink_to(rel_path_src, target_is_directory=not is_linux())
+    else:
+        dstfile = shutil.copy(srcfile, dst)
+
+    return Path(dstfile)

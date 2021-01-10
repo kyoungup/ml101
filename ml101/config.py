@@ -8,14 +8,18 @@ import os
 
 class Project:
     DEFAULT_NAME = 'proj'
+    DEFAULT_DATABANK = 'databank'
 
-    def __init__(self, name=DEFAULT_NAME, cwd=None):
-        self.project = name if name else self.DEFAULT_NAME
+    def __init__(self, name=None, cwd=None, databank:Path=None):
+        self.name = name if name else self.DEFAULT_NAME
         self.backup_folder = None
-        self.init(cwd)
+        self.databank = None
+        self.init(cwd, databank)
 
-    def init(self, cwd=None):
-        self.cwd = Path(cwd) / self.project if cwd else Path(__file__).parent.parent / self.project
+    def init(self, cwd:Path=None, databank:Path=None):
+        self.cwd = Path(cwd) / self.name if cwd else Path(__file__).parent.parent / self.name
+        self.databank = Path(databank) if databank else self.cwd.parent / self.DEFAULT_DATABANK
+
         self.loc_data = self.cwd / 'data'
         self.loc_data_raw = self.loc_data / 'raw'
         self.loc_data_pure = self.loc_data / 'pure'
@@ -55,48 +59,42 @@ class Project:
     def __prepare_memo_file(self):
         if self.backup_folder:
             previous_file = self.backup_folder / 'MEMOME.md'
-            shutil.copy(previous_file, self.cwd)
+            utils.copy(previous_file, self.cwd)
         else:
             (self.cwd / 'MEMOME.md').touch()
 
-    def __import_previous_data(self, hardcopy):
+    def __import_previous_data(self):
         if self.backup_folder is None:
             return
 
-        backup_env = Project(cwd=self.backup_folder)
+        backup_env = Project(name=self.backup_folder.name, cwd=self.backup_folder.parent)
         raw_files = utils.listdir(backup_env.loc_data_raw)
         pure_files = utils.listdir(backup_env.loc_data_pure)
-        if hardcopy:
-            for file in raw_files:
-                shutil.copy(file, self.loc_data_raw)
-            for file in pure_files:
-                shutil.copy(file, self.loc_data_pure)
-        else:
-            if utils.is_linux() is False:
-                return
-            for file in raw_files:
-                (self.loc_data_raw / file.name).symlink_to(file)
-            for file in pure_files:
-                (self.loc_data_pure / file.name).symlink_to(file)
+
+        for file in raw_files:
+            utils.copy(file, self.loc_data_raw)
+        for file in pure_files:
+            utils.copy(file, self.loc_data_pure)
 
     def __backup(self):
         current_time = str(datetime.now().strftime('%Y_%m_%d_%H_%M_%S'))
         self.backup_folder = self.cwd.with_name(self.cwd.name + '-' + current_time)
         self.cwd.rename(self.backup_folder)
 
-    def new(self, name=DEFAULT_NAME, cwd=None, overwrite=False, hardcopy:bool=False):
+    def new(self, name=None, cwd=None, overwrite=False):
         if self.cwd and self.cwd.exists() and overwrite is False:
             self.__backup()
 
-        self.init(cwd)
+        if name: self.name = name
+        self.init(cwd) if cwd else self.init(self.cwd.parent)
         self.__mkdir()
         self.__prepare_memo_file()
-        self.__import_previous_data(hardcopy)
+        self.__import_previous_data()
         return self
 
-    def import_rawdata(self, filepath, symbolic=True):
-        self.file_raw = self.loc_data_raw / Path(filepath).name
-        shutil.copy(filepath, self.file_raw)
+    def import_rawdata(self, srcfile:Path, symbolic=True):
+        self.file_raw = self.loc_data_raw / Path(srcfile).name
+        utils.copy(srcfile, self.file_raw, symbolic=True)
         return self.file_raw
 
 ENV = Project()

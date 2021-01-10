@@ -96,7 +96,7 @@ class Data:
     def tail(self, lines=5) -> pd.DataFrame:
         return self._dataframe.tail(lines)
 
-    def crop(self, rows:list, cols:list) -> 'Data':
+    def crop(self, rows:list=None, cols:list=None) -> 'Data':
         """Crops only the specified rows and cols
         It crops the data by various index types. The supported index types are: int, excel column index, Dataframe column names.
         Args:
