@@ -138,9 +138,7 @@ class Stream:
         Returns:
             DataStream: a file reader/writer for the specified file format
         """
-        @classmethod
-        # TODO: remove calling open()
-        def open(cls, path2file):
+        def __new__(cls, path2file):
             path2file = Path(path2file)
 
             format = path2file.suffix

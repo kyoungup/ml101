@@ -23,7 +23,7 @@ class ReadStream(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X:pd.DataFrame=None, **kwargs) -> pd.DataFrame:
-        stream = Stream.open(self.path2file)
+        stream = Stream(self.path2file)
         data = stream.read(**self.__kwargs())
         return data.dataframe
 
@@ -49,6 +49,6 @@ class WriteStream(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X:pd.DataFrame, **kwargs) -> pd.DataFrame:
-        stream = Stream.open(self.path2file)
+        stream = Stream(self.path2file)
         stream.write(Data(X), **self.__kwargs())
         return X

@@ -10,7 +10,7 @@ import ml101.utils as utils
 class DataFile:
     def __init__(self, src_file, header=0) -> None:
         self.src_file = Path(src_file)
-        self.reader = Stream.open(self.src_file)
+        self.reader = Stream(self.src_file)
         self.header = header
         self.dst_files_ = list()
 
@@ -30,7 +30,7 @@ class DataFile:
         for period in periods:
             chunk_file = utils.insert2filename(self.src_file.name, suffix='_' + str(period).lower())
             self.dst_files_.append(chunk_file)
-            Stream().open(dst_path / chunk_file).write(df[str(period)], index=True)
+            Stream(dst_path / chunk_file).write(df[str(period)], index=True)
         return self
 
     def divide_by_cols(self, cols:list, dst_path:Path=None):
@@ -40,8 +40,8 @@ class DataFile:
         df2 = df[~cols]
         file1 = dst_path / utils.insert2filename(self.src_file.name, suffix='_inc')
         file2 = dst_path / utils.insert2filename(self.src_file.name, suffix='_exc')
-        Stream.open(file1).write(Data(df1))
-        Stream.open(file2).write(Data(df2))
+        Stream(file1).write(Data(df1))
+        Stream(file2).write(Data(df2))
         return self
 
     @property

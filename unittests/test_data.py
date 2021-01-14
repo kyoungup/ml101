@@ -14,7 +14,7 @@ TEMP.mkdir(exist_ok=True, parents=True)
 class TestData(unittest.TestCase):
     def setUp(self) -> None:
         filepath = CWD / 'data' / 'stream_sample.tsv'
-        self.stream = Stream.open(filepath)
+        self.stream = Stream(filepath)
         self.data = self.stream.read(**{'header': 4})
 
     def tearDown(self):
@@ -109,7 +109,7 @@ class TestIndexList(unittest.TestCase):
         self.maxlen = 1000
 
         filepath = CWD / 'data' / 'stream_sample.tsv'
-        self.stream = Stream.open(filepath)
+        self.stream = Stream(filepath)
         self.data = self.stream.read(**{'header': 4})
 
     def tearDown(self) -> None:

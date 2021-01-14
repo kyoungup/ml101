@@ -15,7 +15,7 @@ TEMP.mkdir(exist_ok=True, parents=True)
 class TestPreprocessForTimeSeries(unittest.TestCase):
     def setUp(self) -> None:
         filepath = CWD / 'data' / 'stream_sample.tsv'
-        self.reader = Stream.open(filepath)
+        self.reader = Stream(filepath)
         self.option = {'header': 4}
         self.data = self.reader.read(**self.option)
         self.gt_period = [0, 0, 0, 0, 3, 3, 3, 0, 0, 3, 3, 3]

@@ -102,7 +102,7 @@ class TestRemoval(unittest.TestCase):
         )
         self.filter = DataFilter(self.data)
 
-        df_outlier = Stream.open(CWD / 'data' / 'boston.csv').read()
+        df_outlier = Stream(CWD / 'data' / 'boston.csv').read()
         self.filter_outlier = DataFilter(df_outlier)
 
     def tearDown(self) -> None:
@@ -220,7 +220,7 @@ class TestConversion(unittest.TestCase):
 class TestConversionForTimeSeries(unittest.TestCase):
     def setUp(self) -> None:
         filepath = CWD / 'data' / 'stream_sample.tsv'
-        self.reader = Stream.open(filepath)
+        self.reader = Stream(filepath)
         self.option = {'header': 4}
         self.data = self.reader.read(**self.option)
 
