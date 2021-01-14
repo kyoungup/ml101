@@ -15,8 +15,9 @@ class BaseStream(metaclass=ABCMeta):
     # TODO: replace **{} parameters over Stream inherited classes
     __default_options = {}
 
-    def __init__(self, pathe2file):
-        self.path2file = Path(pathe2file)
+    def __init__(self, path2file):
+        assert path2file
+        self.path2file = Path(path2file)
 
     @abstractmethod
     def read(self, **kwargs):
@@ -139,6 +140,7 @@ class Stream:
             DataStream: a file reader/writer for the specified file format
         """
         def __new__(cls, path2file):
+            assert path2file
             path2file = Path(path2file)
 
             format = path2file.suffix
