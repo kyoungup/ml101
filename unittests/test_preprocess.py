@@ -233,6 +233,10 @@ class TestConversionForTimeSeries(unittest.TestCase):
         new_data = self.prep.shift(columns=self.data.columns, move=-3)
         assert new_data.data.shape == (self.data.shape[0] - 3, self.data.shape[1] * 2)
 
+    def test_shift_0(self):
+        new_data = self.prep.shift(columns=self.data.columns, move=0)
+        assert new_data.data.shape == (self.data.shape[0], self.data.shape[1])
+
     def test_period_countup(self):
         gt_ex1 = [0, 0, 1, 2, 3, 0, 0, 1, 2]
         gt_ex2 = [1, 2, 0, 0, 0, 1, 2, 0, 0, 1, 2, 3, 0]

@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import shutil
 from ml101.serialize import Stream
+from ml101.data import Data
 import ml101.utils as utils
 
 
@@ -13,33 +14,35 @@ class DataFile:
         self.header = header
         self.dst_files_ = list()
 
-    def divide_by_period(self, dst_path, date_col:str, start, end, freq='Q'):
+    def __check_path(self, path):
+        path = Path(path) if path else self.src_file.parent
+        return path
+
+    def divide_by_period(self, date_col:str, start:str=None, end:str=None, freq='Q', dst_path:Path=None):
+        dst_path = self.__check_path(dst_path)
+        data = self.reader.read(**{'header': self.header})
+        data.time_series_on(date_col)
+
+        df = data.dataframe
+        if start is None: start = data.dataframe.index.min()
+        if end is None: end = data.dataframe.index.max()
         periods = pd.period_range(start=start, end=end, freq=freq)
-
-        # TODO: update after time-series support
-        # df = pd.read_csv(self.src_file, parse_dates=[date_col], index_col=date_col)
-        df = self.reader.read(**{'header': self.header}).dataframe
-        df[date_col] = pd.to_datetime(df[date_col])
-        df.set_index(date_col, inplace=True)
-
         for period in periods:
-            chunk_file = self.src_file.stem + '_' + str(period).lower() + self.src_file.suffix
+            chunk_file = utils.insert2filename(self.src_file.name, suffix='_' + str(period).lower())
             self.dst_files_.append(chunk_file)
-            # TODO: use Stream instances!
-            df[str(period)].to_csv(dst_path / chunk_file)
-
+            Stream().open(dst_path / chunk_file).write(df[str(period)], index=True)
         return self
 
-    def divide_by_cols(self, dst_path, cols:list):
-        # df = pd.read_csv(self.src_file, parse_dates=[date_col], index_col=date_col)
+    def divide_by_cols(self, cols:list, dst_path:Path=None):
+        dst_path = self.__check_path(dst_path)
         df = self.reader.read(**{'header': self.header}).dataframe
         df1 = df[cols]
         df2 = df[~cols]
-        file1 = utils.insert2filename(self.src_file, suffix='_inc')
-        file2 = utils.insert2filename(self.src_file, suffix='_exc')
-        # TODO: use Stream instances!
-        df1.to_csv(file1)
-        df2.to_csv(file2)
+        file1 = dst_path / utils.insert2filename(self.src_file.name, suffix='_inc')
+        file2 = dst_path / utils.insert2filename(self.src_file.name, suffix='_exc')
+        Stream.open(file1).write(Data(df1))
+        Stream.open(file2).write(Data(df2))
+        return self
 
     @property
     def recent_files(self):

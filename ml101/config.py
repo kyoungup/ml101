@@ -12,14 +12,12 @@ class Project:
 
     def __init__(self, name=None, cwd=None, databank:Path=None):
         self.name = name if name else self.DEFAULT_NAME
-        self.backup_folder = None
-        self.databank = None
-        self.init(cwd, databank)
-
-    def init(self, cwd:Path=None, databank:Path=None):
         self.cwd = Path(cwd) / self.name if cwd else Path(__file__).parent.parent / self.name
-        self.databank = Path(databank) if databank else self.cwd.parent / self.DEFAULT_DATABANK
+        self.loc_databank = Path(databank) if databank else self.cwd.parent / self.DEFAULT_DATABANK
+        self.backup_folder = None
+        self.__init_locs()
 
+    def __init_locs(self):
         self.loc_data = self.cwd / 'data'
         self.loc_data_raw = self.loc_data / 'raw'
         self.loc_data_pure = self.loc_data / 'pure'
@@ -40,6 +38,8 @@ class Project:
         return self
 
     def __mkdir(self):
+        self.loc_databank.mkdir(exist_ok=True, parents=True)
+
         self.loc_data_raw.mkdir(exist_ok=True, parents=True)
         self.loc_data_pure.mkdir(exist_ok=True, parents=True)
         self.loc_data_train.mkdir(exist_ok=True, parents=True)
@@ -81,20 +81,22 @@ class Project:
         self.backup_folder = self.cwd.with_name(self.cwd.name + '-' + current_time)
         self.cwd.rename(self.backup_folder)
 
-    def new(self, name=None, cwd=None, overwrite=False):
-        if self.cwd and self.cwd.exists() and overwrite is False:
+    def new(self):
+        if self.cwd.exists():
             self.__backup()
 
-        if name: self.name = name
-        self.init(cwd) if cwd else self.init(self.cwd.parent)
         self.__mkdir()
         self.__prepare_memo_file()
         self.__import_previous_data()
         return self
 
     def import_rawdata(self, srcfile:Path, symbolic=True):
-        self.file_raw = self.loc_data_raw / Path(srcfile).name
-        utils.copy(srcfile, self.file_raw, symbolic=True)
-        return self.file_raw
+        # import if srcfile is not in databank
+        if srcfile.is_file() and (self.loc_databank / srcfile.name).exists() is False:
+            srcfile = utils.copy(srcfile, self.loc_databank)
+        # srcfile is supposed to be in databank if only file name is given
+        if srcfile.parent == Path(): srcfile = self.loc_databank / srcfile
+        # copy the raw file to this project
+        return utils.copy(srcfile, self.loc_databank, symbolic=symbolic)
 
 ENV = Project()

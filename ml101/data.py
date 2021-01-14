@@ -10,24 +10,32 @@ class Data:
     It takes pandas DataFrame as a main data type and contains additional meta attributes.
     It also opens common interfaces to simplify access to the core attributes for data processing.
     """
+    options = dict(resolve_dtypes=True)
+    
     def __init__(self, data=None, columns=None):
-        # TODO: regularize dtypes
-        # TODO: let equals ignore dtypes
-        # TODO: compare rounded values
+        # TODO: support time-series - switch time index with flags
+        # TODO: check_data_type should be used and copy meta data
         self._dataframe = self.check_dataframe(data, columns)
+        self.index_time = None
         self.meta = dict()
         self.label = None
         self.labels = list()
         self.features = list()
 
+        if self.options['resolve_dtypes']:
+            self.resolve_dtypes()
+
     @classmethod
-    def check_dataframe(self, data:Union[pd.DataFrame, np.array, 'Data'], columns:list) -> pd.DataFrame:
+    def check_dataframe(self, data:Union[pd.DataFrame, np.array, 'Data', dict], columns:list=None) -> pd.DataFrame:
         if isinstance(data, pd.DataFrame):
             return_value = data
+        elif isinstance(data, dict):
+            return_value = pd.DataFrame(data)
         elif isinstance(data, np.ndarray):
             return_value = pd.DataFrame(data, columns=columns)
         elif isinstance(data, Data):
-            return_value = self.deepcopy(data)
+            # return_value = self.deepcopy(data)
+            return_value = data.dataframe
         elif data is None:
             return_value = pd.DataFrame()
         else:
@@ -37,7 +45,7 @@ class Data:
         return return_value
 
     @classmethod
-    def check_list(self, data:Union[pd.DataFrame, np.array, 'Data']):
+    def check_list(self, data:Union[pd.DataFrame, np.array, 'Data']) -> list:
         if isinstance(data, list):
             return_value = data
         elif isinstance(data, pd.Series) or isinstance(data, pd.Index):
@@ -76,7 +84,7 @@ class Data:
     @property
     def dataframe(self) -> pd.DataFrame:
         return self._dataframe
-
+        
     @dataframe.setter
     def dataframe(self, dataframe):
         assert isinstance(dataframe, pd.DataFrame)
@@ -89,6 +97,10 @@ class Data:
     @property
     def columns(self) -> list:
         return self._dataframe.columns.tolist()
+
+    @property
+    def dtypes(self) -> dict:
+        return self._dataframe.dtypes.to_dict()
 
     def head(self, lines=5) -> pd.DataFrame:
         return self._dataframe.head(lines)
@@ -116,16 +128,57 @@ class Data:
         df = self._dataframe.iloc[idx_rows.list, idx_cols.list]
         return Data(df)
 
-    def equals(self, data:'Data') -> bool:
+    def equals(self, data:'Data', ndigits:int=None, ignore_index=True, ignore_types=True) -> bool:
         """Compares elementwisely
 
         Args:
             data (Data): Data to be compared
+            ndigits (int): precision to compare
+            ignore_index (bool, optional): check it except indices. Defaults to True.
 
         Returns:
             bool: Equal or not
         """
-        return self._dataframe.equals(data._dataframe)
+        # df.equals compares indices. Compare only contents and column names.
+        if ignore_index:
+            df_mine = self._dataframe.reset_index(drop=True)
+            df_given = data._dataframe.reset_index(drop=True)
+        else:
+            df_mine = self._dataframe
+            df_given = data._dataframe
+
+        # df.equals fails different dtypes whose values are same. i.e. equals() is False with 10 and 10.0
+        if ignore_types:
+            columns = df_mine.columns[(df_mine.dtypes == np.int64) | (df_mine.dtypes == np.float)]
+            df_mine[columns] = df_mine[columns].astype(np.float32)
+            columns = df_given.columns[(df_given.dtypes == np.int64) | (df_given.dtypes == np.float)]
+            df_given[columns] = df_given[columns].astype(np.float32)
+
+        if ndigits:
+            return df_mine.round(ndigits).equals(df_given.round(ndigits))
+        else:
+            return df_mine.equals(df_given)
+
+    def time_series_on(self, colname:str):
+        if self.index_time:
+            self.time_series_off()
+        if np.issubdtype(self._dataframe[colname].dtype, np.datetime64) is False:
+            self._dataframe[colname] = pd.to_datetime(self._dataframe[colname], errors='coerce')
+        self._dataframe.set_index(colname, inplace=True)
+        self.index_time = colname
+
+    def time_series_off(self):
+        if self.index_time:
+            self._dataframe.reset_index(inplace=True)
+            self.index_time = None
+
+    def resolve_dtypes(self) -> pd.DataFrame:
+        # TODO: check datetime after convert_dtypes()
+        return self._dataframe.convert_dtypes().dtypes
+
+    def convert_dtypes(self, dtypes:dict=None) -> Union[pd.DataFrame, 'Data']:
+        # TODO: implement convert columns' dtypes. If dtypes is None, convert all with resolve_dtypes()
+        return self
 
     def na_ratio(self, axis='column'):
         """Get an array of NA ratio per axis
@@ -140,6 +193,18 @@ class Data:
         nNa = self._dataframe.isna().sum(axis)
         nTotal = self._dataframe.shape[axis]
         return (nNa / nTotal) * 100
+
+    @property
+    def info(self):
+        return self._dataframe.info()
+
+    @property
+    def description(self) -> pd.DataFrame:
+        return self._dataframe.describe()
+
+    # Inherits built-in functions here
+    def __repr__(self):
+        return repr(self._dataframe)
 
 
 class IndexList:

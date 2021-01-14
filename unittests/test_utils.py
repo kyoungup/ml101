@@ -9,7 +9,7 @@ TEMP = CWD / 'temp'
 TEMP.mkdir(exist_ok=True, parents=True)
 
 
-class TestInsertion(unittest.TestCase):
+class TestCopy(unittest.TestCase):
     def setUp(self) -> None:
         self.src_path = TEMP / 'test1'
         self.src_path.mkdir(exist_ok=True)

@@ -42,6 +42,7 @@ class Graph(metaclass=ABCMeta):
     DEFAULT_FILENAME = 'graph.png'
 
     def __init__(self, data: pd.DataFrame=None, type=None, name=None, ax=None, savepath=None):
+        # TODO: Support Data class
         self.data = data
         self.type = type
         self.parent = None
@@ -151,11 +152,13 @@ class Canvas(Graph):
             return
         
         title = title.upper() if title else self.name.upper()
+        # TODO: set y position
         self.fig.suptitle(title, fontsize=self.TITLE_SIZE, fontweight=self.TITLE_WEIGHT)
 
-    def draw(self, col_wrap, sharex=False, sharey=False, title=None, figsize:tuple=None):
+    def draw(self, col_wrap:int=None, sharex=False, sharey=False, title=None, figsize:tuple=None):
+        # TODO: col_wrap can be None
         num_graphs = len(self._graphs)
-        num_cols = col_wrap if col_wrap < num_graphs else num_graphs
+        num_cols = num_graphs if col_wrap is None or col_wrap >= num_graphs else col_wrap
         num_rows = math.ceil(num_graphs / num_cols)
         self.fig, self.axes = plt.subplots(ncols=num_cols, nrows=num_rows,
                                             sharex=sharex, sharey=sharey,
@@ -174,14 +177,20 @@ class Canvas(Graph):
         return self
 
     def save(self, savepath=None, each=False):
-        filepath = super().save(savepath)
+        path_canvas = super().save(savepath)
 
+        file_graphs = None
         if each:
+            plt.close()
+            file_graphs = list()
+            if savepath is None:
+                savepath = path_canvas.parent
             for idx, graph in enumerate(self._graphs):
-                isavepath = savepath.parent / utils.insert2filename(savepath.name, suffix=f'_{idx}')
-                graph.save(isavepath)
-        
-        return filepath
+                file_graph = savepath / utils.insert2filename(path_canvas.name, suffix=f'_{idx}')
+                file_graphs.append(file_graph)
+                graph.draw().save(file_graph)
+            return path_canvas, file_graphs
+        return path_canvas
         
 
 class Scatter(Graph):
@@ -203,8 +212,9 @@ class Scatter(Graph):
                                     size=self.size,
                                     ax=self.ax, **self.kwargs)
         self.set_title(title)
-        
+
         if ax is None:
+            self.ax.get_figure().tight_layout()
             plt.close()
         return self
 
@@ -229,6 +239,7 @@ class Line(Graph):
         self.set_title(title)
         
         if ax is None:
+            self.ax.get_figure().tight_layout()
             plt.close()
         return self
 
@@ -256,6 +267,7 @@ class Count(Graph):
         self.set_title(title)
         
         if ax is None:
+            self.ax.get_figure().tight_layout()
             plt.close()
         return self
 
@@ -299,11 +311,12 @@ class Heatmap(Graph):
         self.set_labels(xlabel, ylabel)
 
         if ax is None:
+            self.ax.get_figure().tight_layout()
             plt.close()
         return self
 
 
-class Fecet(Graph):
+class Facet(Graph):
     TITLE_SIZE = 'large'
     TITLE_WEIGHT = 'bold'
     DEFAULT_FILENAME = 'fecet.png'
@@ -317,7 +330,7 @@ class Fecet(Graph):
         # self.fig.set_titles(title, fontsize=self.TITLE_SIZE, fontweight=self.TITLE_WEIGHT)
 
 
-class RelPlot(Fecet):
+class RelPlot(Facet):
     DEFAULT_FILENAME = 'relplot.png'
     def __init__(self, data:pd.DataFrame, type=Graph.SCATTER, name=None, savepath=None):
         super().__init__(data=data, type=Graph.SCATTER, name=name, savepath=savepath)

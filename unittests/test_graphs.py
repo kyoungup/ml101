@@ -21,11 +21,14 @@ class TestCanvas(unittest.TestCase):
         self.c1 = Canvas(name='test - tips', data=self.tips, savepath=TEMP)
         self.c2 = Canvas(name='test - penguins', data=self.penguins, savepath=TEMP)
         self.savefile = None
+        self.savefiles = None
 
     def tearDown(self) -> None:
         if self.savefile and self.savefile.exists():
             self.savefile.unlink()
-        pass
+        if self.savefiles:
+            for savefile in self.savefiles:
+                if savefile.exists(): savefile.unlink()
 
     def test_canvas(self):
         ex1 = [dict(type=Graph.SCATTER, name='total-tip', x='total_bill', y='tip', group='day'),
@@ -58,9 +61,9 @@ class TestCanvas(unittest.TestCase):
         self.c1.add(ex1)
         self.c1.draw(col_wrap=4)
         # self.c1.show()
-        self.savefile, self.isavefile = self.c1.save(each=True)
+        self.savefile, self.savefiles = self.c1.save(each=True)
         assert Path(self.savefile).exists()
-        assert len(self.isavefile) == len(ex1)
+        assert self.savefile and len(self.savefiles) == len(ex1)
 
 class TestScatter(unittest.TestCase):
     def setUp(self):

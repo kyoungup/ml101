@@ -2,6 +2,9 @@ import unittest
 from ml101.serialize import Stream
 from ml101.data import Data, IndexList
 from pathlib import Path
+import pandas as pd
+import numpy as np
+
 
 CWD = Path(__file__).parent
 TEMP = CWD / 'temp'
@@ -51,8 +54,54 @@ class TestData(unittest.TestCase):
     def test_columns(self):
         assert len(self.data.columns) == self.data.shape[1]
 
+    def test_equals(self):
+        data = Data({1: [10, 20], 2: [20, np.nan], 'a': ['data', 'test']})
+        different_column_type = Data({1.0: [10.0, 20.0], 2.0: [20.0, np.nan], 'a': ['data', 'test']})
+        assert data.equals(different_column_type)
+
+    def test_compare_round(self):
+        data = Data({1: [10, 20], 2: [20, np.nan], 'a': ['data', 'test']})
+        different_column_type = Data({1.0: [10.001, 20.00], 2.0: [20.003, np.nan], 'a': ['data', 'test']})
+        assert data.equals(different_column_type, ndigits=1)
+
     def test_na_ratio(self):
         assert (self.data.na_ratio('row') > 0).sum() == 6
+    
+    def test_resolve_dtypes(self):
+        data = Data(
+            pd.DataFrame(
+                {
+                    "a": pd.Series([1, 2, 3], dtype=np.dtype("int32")),
+                    "b": pd.Series(["x", "y", "z"], dtype=np.dtype("O")),
+                    "c": pd.Series([True, False, np.nan], dtype=np.dtype("O")),
+                    "d": pd.Series(["h", "i", np.nan], dtype=np.dtype("O")),
+                    "e": pd.Series([10, np.nan, 20], dtype=np.dtype("float")),
+                    "f": pd.Series([np.nan, 100.5, 200], dtype=np.dtype("float")),
+                    "g": pd.Series(['2021-01-01', '2021-01-02', '2021-01-03'], dtype=np.dtype("O")),
+                }
+            )
+        )
+        df_types = data.resolve_dtypes()
+        gt_dtypes = pd.Series(['Int32', 'string', 'boolean', 'string',  'Int64', 'float64', 'string'], index=['a','b','c','d','e','f','g'])
+        assert df_types.equals(gt_dtypes)
+
+    def test_index_time(self):
+        data = Data(
+            pd.DataFrame(
+                {'time': pd.date_range("2020-1-1", periods=100),
+                 'value1': np.random.randn(100).cumsum(),
+                 'value2': np.random.randn(100).cumsum()
+                }
+            )
+        )
+        data.time_series_on('time')
+        assert data.dataframe.index.name == 'time'
+        assert data.columns == ['value1', 'value2']
+        assert data.index_time == 'time'
+        data.time_series_off()
+        assert data.dataframe.index.name is None
+        assert data.columns == ['time', 'value1', 'value2']
+        assert data.index_time is None
 
 
 class TestIndexList(unittest.TestCase):
