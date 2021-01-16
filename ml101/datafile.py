@@ -8,10 +8,10 @@ import ml101.utils as utils
 
 
 class DataFile:
-    def __init__(self, src_file, header=0) -> None:
+    def __init__(self, src_file, pos_header=0) -> None:
         self.src_file = Path(src_file)
         self.reader = Stream(self.src_file)
-        self.header = header
+        self.pos_header = pos_header
         self.dst_files_ = list()
 
     def __check_path(self, path):
@@ -20,7 +20,7 @@ class DataFile:
 
     def divide_by_period(self, date_col:str, start:str=None, end:str=None, freq='Q', dst_path:Path=None):
         dst_path = self.__check_path(dst_path)
-        data = self.reader.read(**{'header': self.header})
+        data = self.reader.read(pos_header=self.pos_header)
         data.time_series_on(date_col)
 
         df = data.dataframe
@@ -35,7 +35,7 @@ class DataFile:
 
     def divide_by_cols(self, cols:list, dst_path:Path=None):
         dst_path = self.__check_path(dst_path)
-        df = self.reader.read(**{'header': self.header}).dataframe
+        df = self.reader.read(pos_header=self.pos_header).dataframe
         df1 = df[cols]
         df2 = df[~cols]
         file1 = dst_path / utils.insert2filename(self.src_file.name, suffix='_inc')
@@ -49,7 +49,7 @@ class DataFile:
         return self.dst_files_
 
     def rename(self, colnames:dict):
-        df = self.reader.read(**{'header': self.header}).dataframe
+        df = self.reader.read(pos_header=self.pos_header).dataframe
         df.rename(colnames, inplace=True)
         # construct new header
         header = ','.join(df.columns) + '\n'

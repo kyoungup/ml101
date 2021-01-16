@@ -221,8 +221,7 @@ class TestConversionForTimeSeries(unittest.TestCase):
     def setUp(self) -> None:
         filepath = CWD / 'data' / 'stream_sample.tsv'
         self.reader = Stream(filepath)
-        self.option = {'header': 4}
-        self.data = self.reader.read(**self.option)
+        self.data = self.reader.read(pos_header=4)
 
         self.prep = DataFilter(self.data.dataframe)
 

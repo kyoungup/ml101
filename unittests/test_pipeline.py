@@ -16,8 +16,7 @@ class TestPreprocessForTimeSeries(unittest.TestCase):
     def setUp(self) -> None:
         filepath = CWD / 'data' / 'stream_sample.tsv'
         self.reader = Stream(filepath)
-        self.option = {'header': 4}
-        self.data = self.reader.read(**self.option)
+        self.data = self.reader.read(pos_header=4)
         self.gt_period = [0, 0, 0, 0, 3, 3, 3, 0, 0, 3, 3, 3]
 
     def tearDown(self) -> None:

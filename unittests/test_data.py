@@ -15,7 +15,7 @@ class TestData(unittest.TestCase):
     def setUp(self) -> None:
         filepath = CWD / 'data' / 'stream_sample.tsv'
         self.stream = Stream(filepath)
-        self.data = self.stream.read(**{'header': 4})
+        self.data = self.stream.read(pos_header=4)
 
     def tearDown(self):
         pass
@@ -110,7 +110,7 @@ class TestIndexList(unittest.TestCase):
 
         filepath = CWD / 'data' / 'stream_sample.tsv'
         self.stream = Stream(filepath)
-        self.data = self.stream.read(**{'header': 4})
+        self.data = self.stream.read(pos_header=4)
 
     def tearDown(self) -> None:
         pass

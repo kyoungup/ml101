@@ -11,52 +11,43 @@ class BaseStream(metaclass=ABCMeta):
     """This is an abstract class to serialize Data class from/to various file formats.
     Subclasses should implment itself for specific file formats.
     """
-    # TODO: implement better option structure
-    # TODO: replace **{} parameters over Stream inherited classes
-    __default_options = {}
-
     def __init__(self, pathe2file):
         self.path2file = Path(pathe2file)
 
     @abstractmethod
-    def read(self, **kwargs):
+    def read(self, pos_header:int=0, columns:Union[str,list,int]=None, **kwargs):
         pass
 
     @abstractmethod
-    def write(self, Data, **kwargs):
-        # TODO: accept Data, pd.DataFrame, and more
-        # TODO: if time-series, try to include index field
+    def write(self, data:Union[Data, pd.DataFrame], index:bool=False, include_header=True, columns:list=None, **kwargs):
         pass
-
-    @property
-    def default(self):
-        return dict(self.__default_options)
 
 
 class StreamExcel(BaseStream):
-    __default_options = {
-        'sheet_name': 0,
-        'header': 0
-    }
-
     def __init__(self, path2file):
         super().__init__(path2file)
-        self._options = self.default
 
     def __isexcelcolumns(self, cols) -> bool:
         return isinstance(cols, str) and cols.upper().isupper()
 
-    def read(self, **kwargs) -> Data:
+    def read(self, sheet_name:Union[str,int,list]=0, pos_header:int=0, columns:Union[str,list,int]=None, **kwargs) -> Data:
         """Refer to pandas' read_excel()
 
         Returns:
             Data:
         """
-        df = pd.read_excel(self.path2file, engine='openpyxl', **kwargs)
+        kwargs['sheet_name'] = sheet_name
+        kwargs['header'] = pos_header
+        kwargs['usecols'] = columns
+        kwargs['engine'] = 'openpyxl'
+        df = pd.read_excel(self.path2file, **kwargs)
         return Data(df)
 
-    def write(self, data:Union[Data, pd.DataFrame], append=False, index=False, **kwargs):
-        sheet_name = kwargs.get('sheet_name', 'Sheet1')
+    def write(self, data:Union[Data, pd.DataFrame], sheet_name:str='Sheet1', append=False, index=False, include_header:bool=True, columns:list=None, **kwargs):
+        kwargs['sheet_name'] = sheet_name
+        kwargs['index'] = index
+        kwargs['header'] = include_header
+        kwargs['columns'] = columns
         df = Data.check_dataframe(data)
         if isinstance(data, Data) and data.index_time: index = True
 
@@ -67,55 +58,47 @@ class StreamExcel(BaseStream):
                 book = openpyxl.load_workbook(self.path2file)
                 writer.book = book
                 writer.sheets = dict((ws.title, ws) for ws in book.worksheets)
-                df.to_excel(writer, sheet_name, index=index)
+                df.to_excel(writer, **kwargs)
         else:
             mode = 'w'
             with pd.ExcelWriter(self.path2file, mode=mode) as writer:   #pylint: disable=abstract-class-instantiated
-                df.to_excel(writer, sheet_name, index=index)
+                df.to_excel(writer, **kwargs)
 
 
 class StreamCSV(BaseStream):
-    __default_options = {
-        'sep': ',',
-        'header': 0,
-        'encoding': None
-    }
-
     def __init__(self, path2file):
         super().__init__(path2file)
 
-    def read(self, **kwargs) -> Data:
+    # TODO: support chunksize
+    def read(self, pos_header:int=0, columns:Union[str,list,int]=None, **kwargs) -> Data:
+        kwargs['header'] = pos_header
+        kwargs['usecols'] = columns
         df = pd.read_csv(self.path2file, **kwargs)
         return Data(df)
 
-    def write(self, data:Union[Data, pd.DataFrame], index=False, **kwargs):
+    def write(self, data:Union[Data, pd.DataFrame], index:bool=False, include_header:bool=True, columns:list=None, **kwargs):
+        kwargs['index'] = index
+        kwargs['header'] = include_header
+        kwargs['columns'] = columns
         df = Data.check_dataframe(data)
         if isinstance(data, Data) and data.index_time: index = True
-        df.to_csv(self.path2file, index=index, **kwargs)
+        df.to_csv(self.path2file, **kwargs)
 
 
 class StreamTSV(StreamCSV):
-    __default_options = {
-        'header': 0,
-        'encoding': None
-    }
-
     def __init__(self, path2file):
         super().__init__(path2file)
 
-    def read(self, **kwargs):
-        df = pd.read_csv(self.path2file, sep='\t', **kwargs)
-        return Data(df)
+    def read(self, pos_header:int=0, columns:Union[str,list,int]=None, **kwargs) -> Data:
+        kwargs['sep'] = '\t'
+        return super().read(pos_header=pos_header, columns=columns, **kwargs)
 
-    def write(self, data:Union[Data, pd.DataFrame], index=False, **kwargs):
-        df = Data.check_dataframe(data)
-        if isinstance(data, Data) and data.index_time: index = True
-        df.to_csv(self.path2file, sep='\t', index=index, **kwargs)
+    def write(self, data:Union[Data, pd.DataFrame], index:bool=False, include_header:bool=True, columns:list=None, **kwargs):
+        kwargs['sep'] = '\t'
+        super().write(data, index=index, include_header=include_header, columns=columns, **kwargs)
 
 
 class StreamPickle(BaseStream):
-    __default_options = {}
-
     def __init__(self, path2file):
         super().__init__(path2file)
 
