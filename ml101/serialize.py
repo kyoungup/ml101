@@ -122,6 +122,7 @@ class Stream:
             DataStream: a file reader/writer for the specified file format
         """
         def __new__(cls, path2file):
+            assert path2file
             path2file = Path(path2file)
 
             format = path2file.suffix
