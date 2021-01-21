@@ -4,7 +4,7 @@ import pandas as pd
 import openpyxl
 import pickle
 from typing import Union
-from ml101.data import Data
+from ml101.data import Data, Types
 
 
 class BaseStream(metaclass=ABCMeta):
@@ -48,7 +48,7 @@ class StreamExcel(BaseStream):
         kwargs['index'] = index
         kwargs['header'] = include_header
         kwargs['columns'] = columns
-        df = Data.check_dataframe(data)
+        df = Types.check_dataframe(data)
         if isinstance(data, Data) and data.index_time: index = True
 
         if append & self.path2file.exists():
@@ -80,7 +80,7 @@ class StreamCSV(BaseStream):
         kwargs['index'] = index
         kwargs['header'] = include_header
         kwargs['columns'] = columns
-        df = Data.check_dataframe(data)
+        df = Types.check_dataframe(data)
         if isinstance(data, Data) and data.index_time: index = True
         df.to_csv(self.path2file, **kwargs)
 

@@ -3,25 +3,25 @@ import numpy as np
 from itertools import accumulate
 from typing import Iterator, Union, Tuple
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, OneHotEncoder
-from ml101.data import Data
+from ml101.data import Data, Types
 
 
 class BaseFilter:
     def __init__(self, data:Union[Data, pd.DataFrame], inplace=True, dropna=True, append=True):
-        self.data = Data.check_data_type(data)
+        self._data = Types.check_data(data)
         self.inplace = inplace
         self.delna = dropna
         self.append = append
 
     def _postprocess(self, new_df:pd.DataFrame, inplace=True, append=True, axis=1, dropna=True):
         if new_df is None or new_df.empty:
-            out_df = self.data._dataframe
+            out_df = self._data._dataframe
         else:
             if append:
                 if new_df.empty is False and axis == 1:
-                    assert new_df.shape[0] == self.data.shape[0]
-                    new_df.index = self.data.dataframe.index
-                dfs = [self.data.dataframe, new_df]
+                    assert new_df.shape[0] == self._data.shape[0]
+                    new_df.index = self._data.dataframe.index
+                dfs = [self._data.dataframe, new_df]
                 out_df = pd.concat(dfs, axis=axis)
             else:
                 out_df = new_df
@@ -30,19 +30,19 @@ class BaseFilter:
                 out_df.dropna(subset=new_df.columns, axis=0, how='all', inplace=True)
 
         if inplace:
-            self.data._dataframe = out_df
+            self._data._dataframe = out_df
             return_value = self
         else:
             return_value = out_df
         return return_value
 
     @property
-    def Data(self) -> Data:
-        return self.data
+    def data(self) -> Data:
+        return self._data
 
-    @Data.setter
-    def Data(self, data):
-        self.data = Data.check_data_type(data)
+    @data.setter
+    def data(self, data):
+        self._data = Types.check_data(data)
 
 
 class Insertion(BaseFilter):
@@ -56,38 +56,38 @@ class Insertion(BaseFilter):
 
     def fill_na(self, values:Union[int,float,str,dict,Tuple[list,list]], inplace=None):
         values = self.__check4fillna(values)
-        df = self.data.dataframe
+        df = self._data.dataframe
         new_df = df.fillna(values)
         
         if inplace is None: inplace = self.inplace
         return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
 
     def fill_median(self, cols:list=None, inplace=None):
-        df = self.data.dataframe
+        df = self._data.dataframe
         if cols is None: cols = df.columns # this may be correct to select any NaN columns
         median = df[cols].median().tolist()
         return self.fill_na((cols, median), inplace=inplace)
 
     def fill_mean(self, cols:list=None, inplace=None):
-        df = self.data.dataframe
+        df = self._data.dataframe
         if cols is None: cols = df.columns  # this may be correct to select any NaN columns
         median = df[cols].mean().tolist()
         return self.fill_na((cols, median), inplace=inplace)
 
     def fill_max(self, cols:list=None, inplace=None):
-        df = self.data.dataframe
+        df = self._data.dataframe
         if cols is None: cols = df.columns  # this may be correct to select any NaN columns
         median = df[cols].max().tolist()
         return self.fill_na((cols, median), inplace=inplace)
 
     def fill_min(self, cols:list=None, inplace=None):
-        df = self.data.dataframe
+        df = self._data.dataframe
         if cols is None: cols = df.columns  # this may be correct to select any NaN columns
         median = df[cols].min().tolist()
         return self.fill_na((cols, median), inplace=inplace)
 
     def fill_along(self, method='ffill', axis=0, inplace=None):
-        df = self.data.dataframe
+        df = self._data.dataframe
         new_df = df.fillna(method=method, axis=axis)
         if inplace is None: inplace = self.inplace
         return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
@@ -100,18 +100,18 @@ class Insertion(BaseFilter):
 class Removal(BaseFilter):
     def drop_na(self, axis=0, how:Union[str, int, float]='all', cols:list=None, inplace=None):
         if isinstance(how, str):
-            new_df = self.data.dataframe.dropna(axis=axis, how=how, subset=cols, inplace=False)
+            new_df = self._data.dataframe.dropna(axis=axis, how=how, subset=cols, inplace=False)
         elif isinstance(how, int):
-            new_df = self.data.dataframe.dropna(axis=axis, thresh=how, subset=cols, inplace=False)
+            new_df = self._data.dataframe.dropna(axis=axis, thresh=how, subset=cols, inplace=False)
         else:
-            num = self.data.shape[0] * how
-            new_df = self.data.dataframe.dropna(axis=axis, thresh=num, subset=cols, inplace=False)
+            num = self._data.shape[0] * how
+            new_df = self._data.dataframe.dropna(axis=axis, thresh=num, subset=cols, inplace=False)
 
         if inplace is None: inplace = self.inplace
         return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
 
     def drop_const(self, axis=0, dropna=False, inplace=None):
-        df = self.data.dataframe
+        df = self._data.dataframe
         if axis == 0:
             keep_columns = df.columns[df.nunique(dropna=dropna) > 1]
             new_df = df[keep_columns]
@@ -123,14 +123,14 @@ class Removal(BaseFilter):
         return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
 
     def drop_columns(self, columns: list = None, inplace=None):
-        new_df = self.data.dataframe.drop(columns, axis=1)
+        new_df = self._data.dataframe.drop(columns, axis=1)
 
         if inplace is None: inplace = self.inplace
         return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
 
     def drop_rows(self, row_index: list = None, inplace=None):
-        df = self.data.dataframe
-        new_df = self.data.dataframe.drop(df.index[row_index])
+        df = self._data.dataframe
+        new_df = self._data.dataframe.drop(df.index[row_index])
 
         if inplace is None: inplace = self.inplace
         return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
@@ -147,13 +147,13 @@ class Removal(BaseFilter):
         """
         # TODO: to be extended to other methods
         if columns is None:
-            columns = self.data.dataframe.columns
+            columns = self._data.dataframe.columns
 
         DISCERN_CONSTANT = 1.5
         Q1 = 0.25
         Q3 = 0.75
 
-        df = self.data.dataframe[columns]
+        df = self._data.dataframe[columns]
         # df.dropna(inplace=self.inplace)     # PKU: 이 작업이 필요할까? 원래 데이터와 달라질 수 있지 않을까?
         q1 = df.quantile(Q1)
         q3 = df.quantile(Q3)
@@ -169,7 +169,7 @@ class Removal(BaseFilter):
         else:
             mask = ~(df > upper).any(axis=1)
 
-        new_df = self.data.dataframe[mask]
+        new_df = self._data.dataframe[mask]
 
         if inplace is None: inplace = self.inplace
         return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
@@ -187,7 +187,7 @@ class Conversion(BaseFilter):
             except_cols (list, optional): column names to exclude for scaling. Defaults to None.
         """
         # TODO: seperate scale methods for each
-        df = self.data.dataframe
+        df = self._data.dataframe
 
         if except_cols is None:
             except_cols = []
@@ -227,7 +227,7 @@ class Conversion(BaseFilter):
         Returns:
             pd.DataFrame: dataset after one-hot encoding
         """
-        df = self.data.dataframe
+        df = self._data.dataframe
         if cols is None: cols = df.columns
 
         encoded_cols = list()
@@ -254,9 +254,9 @@ class Conversion(BaseFilter):
         return newnames
 
     def shift(self, columns: list = None, move: int = 1, dropna=None, append=None, inplace=None) -> Union[pd.DataFrame, 'DataFilter']:
-        columns = Data.check_list(columns)
+        columns = Types.check_list(columns)
 
-        df = self.data.dataframe
+        df = self._data.dataframe
 
         if move != 0:
             newnames = self.get_shifted_names(columns, move)
@@ -287,9 +287,9 @@ class Conversion(BaseFilter):
         return reversed(reversed_period)
 
     def set_period(self, columns: list, new_columns:list=None, labelon: int = 1, append=None, inplace=None) -> Union[pd.DataFrame, 'DataFilter']:
-        columns = Data.check_list(columns)
+        columns = Types.check_list(columns)
 
-        df = self.data.dataframe
+        df = self._data.dataframe
         if new_columns is None:
             new_columns = [colname + '_period' for colname in columns]
 

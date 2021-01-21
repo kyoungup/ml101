@@ -6,7 +6,7 @@ import seaborn as sns
 from pathlib import Path
 from ml101.graphs import Graph, Canvas
 from ml101.graphs import RelPlot, Scatter, Line, Heatmap
-from ml101.graphs import ConfusionMatrixGraph
+from ml101.graphs import ConfusionMatrixGraph, Interval
 
 
 CWD = Path(__file__).parent
@@ -148,3 +148,23 @@ class TestRelplot(unittest.TestCase):
     def test_graph_line(self):
         self.lg.draw(type=Graph.LINE, x="timepoint", y="signal", group="region")
         self.savefile = self.lg.save()
+
+
+class TestInterval(unittest.TestCase):
+    def setUp(self) -> None:
+        self.savefile = None
+        self.dataset = self.tips = sns.load_dataset('iris')
+
+    def tearDown(self) -> None:
+        if self.savefile and self.savefile.exists():
+            self.savefile.unlink()
+
+    def test_draw(self):
+        self.g = Interval(name='PetalLength', data=self.dataset, x='petal_length', group='species')
+        self.g.draw()
+        self.savefile = self.g.save(TEMP)
+
+    def test_draw_with_confidence_label(self):
+        self.g = Interval(name='PetalLength_99', data=self.dataset, x='petal_length', group='species', confidence=0.99)
+        self.g.draw()
+        self.savefile = self.g.save(TEMP)

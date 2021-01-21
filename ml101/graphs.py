@@ -8,10 +8,8 @@ import math
 from scipy import stats
 from typing import Union
 import itertools
-from sklearn.metrics import confusion_matrix
-from ml101.config import ENV
 import ml101.utils as utils
-from ml101.evaluation import normalize_matrix
+from ml101.data import Data, Types
 
 
 class Graph(metaclass=ABCMeta):
@@ -41,9 +39,8 @@ class Graph(metaclass=ABCMeta):
 
     DEFAULT_FILENAME = 'graph.png'
 
-    def __init__(self, data: pd.DataFrame=None, type=None, name=None, ax=None, savepath=None):
-        # TODO: Support Data class
-        self.data = data
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray]=None, type=None, name=None, ax=None, savepath=None):
+        self._data = Types.check_data(data)
         self.type = type
         self.parent = None
         
@@ -63,6 +60,14 @@ class Graph(metaclass=ABCMeta):
                 self.filename = utils.insert2filename(self.DEFAULT_FILENAME, prefix=f'{utils.convert2filename(self.name)}_')
         else:
             self.filename = utils.insert2filename(self.DEFAULT_FILENAME, prefix=f'{utils.convert2filename(self.name)}_')
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, data):
+        self._data = Types.check_data(data)
 
     @abstractmethod
     def draw(self, **kwargs):
@@ -109,7 +114,7 @@ class Canvas(Graph):
     TITLE_WEIGHT = 'bold'
     DEFAULT_FILENAME = 'canvas.png'
 
-    def __init__(self, name=None, data=None, savepath=None):
+    def __init__(self, name=None, data:Union[Data, pd.DataFrame, np.ndarray]=None, savepath=None):
         super().__init__(data=data, name=name, savepath=savepath)
         self._graphs = list()
 
@@ -134,7 +139,7 @@ class Canvas(Graph):
     def convert(self, **kwargs):
         if 'type' in kwargs:
             type = kwargs['type']
-            if 'data' not in kwargs: kwargs['data'] = self.data
+            if 'data' not in kwargs: kwargs['data'] = self._data
             if type == Graph.SCATTER:
                 return Scatter(**kwargs)
             elif type == Graph.COUNT:
@@ -172,6 +177,7 @@ class Canvas(Graph):
             graph.draw(ax=self.axes.flat[idx])
 
         self.set_title(title)
+        self.fig.autofmt_xdate()
         self.fig.tight_layout()
 
         return self
@@ -196,7 +202,7 @@ class Canvas(Graph):
 class Scatter(Graph):
     DEFAULT_FILENAME = 'scatter.png'
 
-    def __init__(self, data, x, y, group=None, size=None, ax=None, name=None, savepath=None, **kwargs):
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None, group=None, size=None, ax=None, name=None, savepath=None, **kwargs):
         super().__init__(data=data, type=Graph.SCATTER, name=name, ax=ax, savepath=savepath)
         self.x = x
         self.y = y
@@ -208,20 +214,22 @@ class Scatter(Graph):
         self.ax = ax
         self.kwargs = dict()
         # if 'ax' in kwargs: self.kwargs['ax'] = kwargs['ax']
-        self.ax = sns.scatterplot(data=self.data, x=self.x, y=self.y, hue=self.group,
+        self.ax = sns.scatterplot(data=self._data.dataframe, x=self.x, y=self.y, hue=self.group,
                                     size=self.size,
                                     ax=self.ax, **self.kwargs)
         self.set_title(title)
+        self.ax.get_figure().autofmt_xdate()
+        self.ax.get_figure().tight_layout()
 
         if ax is None:
-            self.ax.get_figure().tight_layout()
             plt.close()
         return self
+
 
 class Line(Graph):
     DEFAULT_FILENAME = 'line.png'
 
-    def __init__(self, data, x, y, group=None, size=None, ax=None, name=None, savepath=None, **kwargs):
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None, group=None, size=None, ax=None, name=None, savepath=None, **kwargs):
         super().__init__(data=data, type=Graph.LINE, name=name, ax=ax, savepath=savepath)
         self.x = x
         self.y = y
@@ -233,13 +241,14 @@ class Line(Graph):
         self.ax = ax
         self.kwargs = dict()
         # if 'ax' in kwargs: self.kwargs['ax'] = kwargs['ax']
-        self.ax = sns.lineplot(data=self.data, x=self.x, y=self.y, hue=self.group,
+        self.ax = sns.lineplot(data=self._data.dataframe, x=self.x, y=self.y, hue=self.group,
                                     size=self.size,
                                     ax=self.ax, **self.kwargs)
         self.set_title(title)
-        
+        self.ax.get_figure().autofmt_xdate()
+        self.ax.get_figure().tight_layout()
+
         if ax is None:
-            self.ax.get_figure().tight_layout()
             plt.close()
         return self
 
@@ -247,7 +256,7 @@ class Line(Graph):
 class Count(Graph):
     DEFAULT_FILENAME = 'count.png'
 
-    def __init__(self, data, x, dir='vertical', group=None, ax=None, name=None, savepath=None, **kwargs):
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, dir='vertical', group=None, ax=None, name=None, savepath=None, **kwargs):
         super().__init__(data=data, type=Graph.COUNT, name=name, ax=ax, savepath=savepath)
         self.x = x
         self.dir = dir
@@ -262,12 +271,70 @@ class Count(Graph):
             self.kwargs['x'] = self.x
         else:
             self.kwargs['y'] = self.x
-        self.ax = sns.countplot(data=self.data, hue=self.group,
+        self.ax = sns.countplot(data=self._data.dataframe, hue=self.group,
                                     ax=self.ax, **self.kwargs)
         self.set_title(title)
-        
+        self.ax.get_figure().tight_layout()
+
         if ax is None:
-            self.ax.get_figure().tight_layout()
+            plt.close()
+        return self
+
+
+class Interval(Graph):
+    DEFAULT_FILENAME = 'interval.png'
+
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, confidence=0.95, ax=None, group=None, size=None, name=None, savepath=None):
+        super().__init__(data=data, name=name, savepath=savepath)
+        self.x = x
+        self.ax = ax
+        self.group = group
+        self.confidence = confidence
+        self.size = size
+
+    def __mean_confidence_interval(self, vec, confidence):
+        m, se = np.mean(vec), stats.sem(vec)
+        h = se * stats.t.ppf((1 + confidence) / 2, len(vec)-1)
+        return m, m-h, m+h
+
+    def __make_interval_dict(self, data, group, variable, confidence):
+        freq = data[group].value_counts()
+        group_info = freq[freq > 2].index.values
+
+        mean_vec = []
+        lower_limit = []
+        upper_limit = []
+
+        for gr in group_info:
+            temp = data[data[group] == gr][variable]
+            temp_mean, lower, upper = self.__mean_confidence_interval(temp, confidence)
+            mean_vec.append(temp_mean)
+            lower_limit.append(lower)
+            upper_limit.append(upper)
+
+        interval_dict = {}
+        interval_dict['category'] = group_info
+        interval_dict['lower'] = lower_limit
+        interval_dict['upper'] = upper_limit
+        interval_dict['mean'] = mean_vec
+        return interval_dict
+
+    def draw(self, fig=None, ax=None, **kwargs):
+        self.ax = ax
+        self.fig = fig
+        self.kwargs = dict()
+
+        intervals = pd.DataFrame(self.__make_interval_dict(self._data.dataframe, self.group, self.x, self.confidence))
+        self.fig, self.ax = plt.subplots()
+        for mean, lower, upper, a in zip(intervals['mean'], intervals['lower'], intervals['upper'], range(len(intervals))):
+            plt.plot((a, a), (lower, upper), '_-', lw=2, markersize=10, markeredgewidth=2, color='tab:blue')
+            plt.plot(a, mean, 'o', color='tab:blue')
+            plt.xticks(range(len(intervals)), list(intervals['category']))
+
+        self.set_title('{:.0f}% Confidence Interval Plot'.format(self.confidence * 100))
+        self.set_labels(yaxis=self.x)
+
+        if ax is None:
             plt.close()
         return self
 
@@ -280,7 +347,7 @@ class Heatmap(Graph):
                         font_size=8,    # annot_kws={'size': 8}
                         linewidths=0.5)
 
-    def __init__(self, data, annot:Union[bool, np.ndarray, pd.DataFrame]=None,
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], annot:Union[bool, np.ndarray, pd.DataFrame]=None,
                 name=None, ax=None, savepath=None, **kwargs):
         super().__init__(data=data, type=Graph.HEATMAP, name=name, ax=ax, savepath=savepath)
         self.annot = annot
@@ -305,7 +372,7 @@ class Heatmap(Graph):
         if self.annot is not None and isinstance(self.annot, bool) is False:
             self.kwargs['fmt'] = ''
         
-        self.ax = sns.heatmap(data=self.data, annot=self.annot,
+        self.ax = sns.heatmap(data=self._data.dataframe, annot=self.annot,
                               ax=self.ax, **self.kwargs)
         self.set_title(title)
         self.set_labels(xlabel, ylabel)
@@ -319,7 +386,7 @@ class Heatmap(Graph):
 class Facet(Graph):
     TITLE_SIZE = 'large'
     TITLE_WEIGHT = 'bold'
-    DEFAULT_FILENAME = 'fecet.png'
+    DEFAULT_FILENAME = 'facet.png'
 
     def set_title(self, title=None):
         if title is None and self.name is None:
@@ -332,12 +399,12 @@ class Facet(Graph):
 
 class RelPlot(Facet):
     DEFAULT_FILENAME = 'relplot.png'
-    def __init__(self, data:pd.DataFrame, type=Graph.SCATTER, name=None, savepath=None):
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], type=Graph.SCATTER, name=None, savepath=None):
         super().__init__(data=data, type=Graph.SCATTER, name=name, savepath=savepath)
 
-    def draw(self, x, y, group=None, type=None, sep_col=None, size=None):
+    def draw(self, x=None, y=None, group=None, type=None, sep_col=None, size=None):
         if type is None: type = self.type
-        self.fig = sns.relplot(data=self.data, x=x, y=y, hue=group, kind=type, size=size)
+        self.fig = sns.relplot(data=self._data.dataframe, x=x, y=y, hue=group, kind=type, size=size)
         self.set_title()
         return self
 
@@ -345,10 +412,10 @@ class RelPlot(Facet):
 class ConfusionMatrixGraph(Heatmap):
     DEFAULT_FILENAME = 'confusion_matrix.png'
     NORMALIZE_ALL = 'all'
-    NORMALIZE_TRUE = 'true'
-    NORMALIZE_PRED = 'pred'
+    NORMALIZE_TRUE = 'row'
+    NORMALIZE_PRED = 'column'
 
-    def __init__(self, cm, name=None, idx2label=None, savepath=None):
+    def __init__(self, cm:Union[Data, pd.DataFrame, np.ndarray], name=None, idx2label=None, savepath=None):
         self.idx2label = idx2label
         if idx2label:
             labels = list(idx2label.values())
@@ -359,13 +426,13 @@ class ConfusionMatrixGraph(Heatmap):
         # Set title of figure
         title = f'Confusion Matrix{suffix}' if suffix else 'Confusion Matrix'
 
-        cm = self.data
+        cm = self._data.dataframe
         # normalize
-        cm_normalized, cm_sum = normalize_matrix(cm, normalize)
+        cm_normalized, cm_sum = utils.normalize_matrix(cm, normalize)
 
         annot = np.empty_like(cm).astype(str)
         for row, col in itertools.product(range(cm_normalized.shape[0]), range(cm_normalized.shape[1])):
-            value = cm[row, col]
+            value = cm.iloc[row, col]
             normalized_value = cm_normalized[row, col]
             annot[row, col] = f'{normalized_value:.2%}\n{value}'
             if row == col:
@@ -375,29 +442,4 @@ class ConfusionMatrixGraph(Heatmap):
         self.data = cm_normalized
         super().draw(title=title, xlabel='Predicted labels', ylabel='True labels', **kwargs)
         self.data = cm
-        return self
-
-    
-class Lines(Line):
-    DEFAULT_FILENAME = 'line.png'
-
-    def __init__(self, data, x, y, group=None, size=None, ax=None, name=None, savepath=None, **kwargs):
-        super().__init__(data=data, type=Graph.LINE, name=name, ax=ax, savepath=savepath)
-        self.x = x
-        self.y = y
-        self.group = group
-        self.size = size
-        # setattr more
-
-    def draw(self, ax=None, title=None, **kwargs):
-        self.ax = ax
-        self.kwargs = dict()
-        # if 'ax' in kwargs: self.kwargs['ax'] = kwargs['ax']
-        self.ax = sns.lineplot(data=self.data, x=self.x, y=self.y, hue=self.group,
-                                    size=self.size,
-                                    ax=self.ax, **self.kwargs)
-        self.set_title(title)
-        
-        if ax is None:
-            plt.close()
         return self

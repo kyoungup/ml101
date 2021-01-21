@@ -37,7 +37,7 @@ class TestInsertion(unittest.TestCase):
                 [0, 3, 2, 4]],
                 columns=list('ABCD'), dtype=float)
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_fill_na_tuple(self):
         colvals = {'A': 0, 'B': 1, 'C': 2, 'D': 3}
@@ -52,7 +52,7 @@ class TestInsertion(unittest.TestCase):
                 [0, 3, 2, 4]],
                 columns=list('ABCD'), dtype=float)
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_fill_median(self):
         cols = ['A', 'B']
@@ -65,7 +65,7 @@ class TestInsertion(unittest.TestCase):
                 [3, 3, np.nan, 4]],
                 columns=list('ABCD'), dtype=float)
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_fill_mean(self):
         self.filter.fill_mean()
@@ -77,7 +77,7 @@ class TestInsertion(unittest.TestCase):
                 [3, 3, np.nan, 4]],
                 columns=list('ABCD'), dtype=float)
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_fill_along_backward(self):
         self.filter.fill_along(method='bfill')
@@ -89,7 +89,7 @@ class TestInsertion(unittest.TestCase):
                 [np.nan, 3, np.nan, 4]],
                 columns=list('ABCD'), dtype=float)
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
 
 class TestRemoval(unittest.TestCase):
@@ -115,7 +115,7 @@ class TestRemoval(unittest.TestCase):
                 [['Batman', 'Batmobile', pd.Timestamp("1940-04-25"), 0]],
                 columns=['name', 'toy', 'born', 'CONST'])
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_drop_const(self):
         self.filter.drop_const()
@@ -124,7 +124,7 @@ class TestRemoval(unittest.TestCase):
                 "toy": [np.nan, 'Batmobile', 'Bullwhip'],
                 "born": [pd.NaT, pd.Timestamp("1940-04-25"), pd.NaT]})
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_drop_columns(self):
         remove_cols = ['toy', 'CONST']
@@ -133,7 +133,7 @@ class TestRemoval(unittest.TestCase):
             pd.DataFrame({"name": ['Alfred', 'Batman', 'Catwoman'],
                 "born": [pd.NaT, pd.Timestamp("1940-04-25"), pd.NaT]})
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_drop_rows(self):
         remove_rows = [0, 2]
@@ -144,11 +144,11 @@ class TestRemoval(unittest.TestCase):
                 "born": [pd.Timestamp("1940-04-25")],
                 'CONST': [0]})
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_drop_outliers(self):
         self.filter_outlier.drop_outliers()
-        assert self.filter_outlier.data.shape == (274, 13)
+        assert self.filter_outlier._data.shape == (274, 13)
     # TODO: drawing scatter plot with outliers
 
 
@@ -171,7 +171,7 @@ class TestConversion(unittest.TestCase):
                 [[-1., -1.], [-1., -1.], [ 1.,  1.], [ 1.,  1.]],
                 columns=list('AB'), dtype=float)
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_scale_standard_exclude_cols(self):
         self.filter.scale(except_cols=['B'])
@@ -180,7 +180,7 @@ class TestConversion(unittest.TestCase):
                 [[-1., 0], [-1., 0], [ 1.,  1.], [ 1.,  1.]],
                 columns=list('AB'), dtype=float)
         )
-        assert self.filter.data.equals(gt)
+        assert self.filter._data.equals(gt)
 
     def test_scale_minmax(self):
         self.data_minmax = Data(
@@ -196,7 +196,7 @@ class TestConversion(unittest.TestCase):
                 [[0., 0.], [0.25, 0.25], [0.5,  0.5], [1., 1.]],
                 columns=list('AB'), dtype=float)
         )
-        assert self.filter_minmax.data.equals(gt)
+        assert self.filter_minmax._data.equals(gt)
 
     def test_onehot(self):
         self.data_onehot = Data(
@@ -214,7 +214,7 @@ class TestConversion(unittest.TestCase):
                 [1., 0., 0., 1., 0.]],
                 )
         )
-        assert (self.filter_onehot.data.dataframe.values == gt.dataframe.values).all()
+        assert (self.filter_onehot._data.dataframe.values == gt.dataframe.values).all()
 
 
 class TestConversionForTimeSeries(unittest.TestCase):
@@ -230,11 +230,11 @@ class TestConversionForTimeSeries(unittest.TestCase):
 
     def test_shift(self):
         new_data = self.prep.shift(columns=self.data.columns, move=-3)
-        assert new_data.data.shape == (self.data.shape[0] - 3, self.data.shape[1] * 2)
+        assert new_data._data.shape == (self.data.shape[0] - 3, self.data.shape[1] * 2)
 
     def test_shift_0(self):
         new_data = self.prep.shift(columns=self.data.columns, move=0)
-        assert new_data.data.shape == (self.data.shape[0], self.data.shape[1])
+        assert new_data._data.shape == (self.data.shape[0], self.data.shape[1])
 
     def test_period_countup(self):
         gt_ex1 = [0, 0, 1, 2, 3, 0, 0, 1, 2]

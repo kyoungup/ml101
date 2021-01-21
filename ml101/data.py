@@ -14,8 +14,8 @@ class Data:
     
     def __init__(self, data=None, columns=None):
         # TODO: support time-series - switch time index with flags
-        # TODO: check_data_type should be used and copy meta data
-        self._dataframe = self.check_dataframe(data, columns)
+        # TODO: check_data should be used and copy meta data
+        self._dataframe = Types.check_dataframe(data, columns)
         self.index_time = None
         self.meta = dict()
         self.label = None
@@ -26,56 +26,12 @@ class Data:
             self.resolve_dtypes()
 
     @classmethod
-    def check_dataframe(self, data:Union[pd.DataFrame, np.array, 'Data', dict], columns:list=None) -> pd.DataFrame:
-        if isinstance(data, pd.DataFrame):
-            return_value = data
-        elif isinstance(data, dict):
-            return_value = pd.DataFrame(data)
-        elif isinstance(data, np.ndarray):
-            return_value = pd.DataFrame(data, columns=columns)
-        elif isinstance(data, Data):
-            # return_value = self.deepcopy(data)
-            return_value = data.dataframe
-        elif data is None:
-            return_value = pd.DataFrame()
-        else:
-            # TDOD: check the data type and the shape in case of unsupported format.
-            # raise ValueError(data)
-            return_value = pd.DataFrame(data)
-        return return_value
-
-    @classmethod
-    def check_list(self, data:Union[pd.DataFrame, np.array, 'Data']) -> list:
-        if isinstance(data, list):
-            return_value = data
-        elif isinstance(data, pd.Series) or isinstance(data, pd.Index):
-            return_value = data.to_list()
-        elif isinstance(data, np.ndarray) and data.ndim == 1:
-            return_value = data.tolist()
-        elif data is None:
-            return_value = list()
-        else:
-            # check the data type and the shape in case of unsupported format.
-            raise ValueError(data)
-        return return_value
-
-    @classmethod
     def deepcopy(cls, data:'Data') -> pd.DataFrame:
         # TODO: Need to update whenever Data updates
         return data._dataframe.copy(deep=True)
 
     def __array__(self, dtype=None) -> np.ndarray:
         return np.asarray(self._dataframe._values, dtype=dtype)
-
-    @classmethod
-    def check_data_type(cls, data) -> 'Data':
-        if isinstance(data, Data):
-            return_value = data
-        elif isinstance(data, pd.DataFrame):
-            return_value = Data(data)
-        else:
-            raise TypeError('Unsupported data type!')
-        return return_value
 
     @property
     def dataset(self) -> pd.DataFrame:
@@ -205,6 +161,62 @@ class Data:
     # Inherits built-in functions here
     def __repr__(self):
         return repr(self._dataframe)
+
+
+class Types:
+    @classmethod
+    def check_dataframe(cls, data:Union[pd.DataFrame, np.array, Data, dict], columns:list=None) -> pd.DataFrame:
+        if isinstance(data, pd.DataFrame):
+            return_value = data
+        elif isinstance(data, dict):
+            return_value = pd.DataFrame(data)
+        elif isinstance(data, np.ndarray):
+            return_value = pd.DataFrame(data, columns=columns)
+        elif isinstance(data, Data):
+            # return_value = self.deepcopy(data)
+            return_value = data.dataframe
+        elif data is None:
+            return_value = pd.DataFrame()
+        else:
+            # TDOD: check the data type and the shape in case of unsupported format.
+            # raise ValueError(data)
+            return_value = pd.DataFrame(data)
+        return return_value
+
+    @classmethod
+    def check_list(cls, data:Union[pd.DataFrame, np.array, Data]) -> list:
+        if isinstance(data, list):
+            return_value = data
+        elif isinstance(data, pd.Series) or isinstance(data, pd.Index):
+            return_value = data.to_list()
+        elif isinstance(data, np.ndarray) and data.ndim == 1:
+            return_value = data.tolist()
+        elif data is None:
+            return_value = list()
+        else:
+            # check the data type and the shape in case of unsupported format.
+            raise TypeError(data)
+        return return_value
+
+    @classmethod
+    def check_data(cls, data) -> Data:
+        if isinstance(data, Data):
+            return_value = data
+        else:
+            return_value = Data(cls.check_dataframe(data))
+        return return_value
+
+    @classmethod
+    def check_array(cls, data) -> np.ndarray:
+        if isinstance(data, np.ndarray):
+            return_value = data
+        elif isinstance(data, Data):
+            return_value = data.dataframe.to_numpy()
+        elif isinstance(data, pd.DataFrame):
+            return_value = data.to_numpy()
+        else:
+            raise TypeError(data)
+        return return_value
 
 
 class IndexList:

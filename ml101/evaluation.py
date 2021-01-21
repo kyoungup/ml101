@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractclassmethod
+from abc import ABCMeta, abstractmethod
 import json
 from pathlib import Path
 from collections import defaultdict
@@ -30,7 +30,7 @@ class Scores(metaclass=ABCMeta):
     def report(self, exp_set=TEST) -> pd.DataFrame:
         return pd.DataFrame.from_dict(self.scores(exp_set), orient='columns').T
 
-    @abstractclassmethod
+    @abstractmethod
     def add(self, true_y, pred_y):
         pass
 
@@ -146,7 +146,7 @@ class AggScores(Scores, metaclass=ABCMeta):
         self.list = list()        
         self.metrics_stds = defaultdict(dict)
 
-    @abstractclassmethod
+    @abstractmethod
     def _update(self):
         pass
 
@@ -364,25 +364,3 @@ class SimpleScores:
         with aggregate_file.open(mode='w') as f:
             json.dump({'means': self.scores_mean,
                         'std': self.scores_std}, f, indent=4)
-
-
-def normalize_matrix(mat: np.ndarray, normalize: str='all'):
-    mat_numpy = mat if isinstance(mat, np.ndarray) else np.array(mat)
-
-    with np.errstate(all='ignore'):
-        normalized_mat = None
-        sum_mat = None
-        if normalize == 'true':
-            sum_mat = mat_numpy.sum(axis=1, keepdims=True)
-            normalized_mat = mat_numpy / sum_mat
-            sum_mat = np.tile(sum_mat, (1, mat_numpy.shape[1]))
-        elif normalize == 'pred':
-            sum_mat = mat_numpy.sum(axis=0, keepdims=True)
-            normalized_mat = mat_numpy / sum_mat
-            sum_mat = np.tile(sum_mat, (mat_numpy.shape[0], 1))
-        elif normalize == 'all':
-            sum_mat = mat_numpy.sum()
-            normalized_mat = mat_numpy / sum_mat
-            sum_mat = np.tile(sum_mat, mat_numpy.shape)
-        normalized_mat = np.nan_to_num(normalized_mat)
-    return normalized_mat, sum_mat

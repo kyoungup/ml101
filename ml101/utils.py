@@ -7,8 +7,20 @@ import numpy as np
 import platform
 import shutil
 import os
+from typing import Union
+from ml101.data import Data, Types
 
 
+#==============================================
+#   System / OS
+#==============================================
+def is_linux() -> bool:
+    return platform.system() == 'Linux'
+
+
+#==============================================
+#   File Helpers
+#==============================================
 def confirm_path(fullpath) -> Path:
     path = None
     filename = None
@@ -39,61 +51,8 @@ def insert2filename(path, prefix:str=None, suffix:str=None):
     return filename
 
 
-def round_container(src, ndigits=4):
-    if isinstance(src, dict):
-        return type(src)((key, round_container(value, ndigits)) for key, value in src.items())
-    if isinstance(src, collections.Container):
-        return type(src)(round_container(value, ndigits) for value in src)
-    if isinstance(src, numbers.Number):
-        return round(src, ndigits)
-    return src
-
-
-def reverse_dict(src:dict) -> dict:
-    return {value:key for key, value in src.items()}
-
-
-def build_idx2labels(*labels: list) -> dict:
-    unique = skutils.unique_labels(*labels)
-    return {idx: label for idx, label in enumerate(unique)}
-
-
-def update_kwargs(default_set: dict, new_set: dict) -> dict:
-    """Update only existing key-values of default set with a new set
-
-    Args:
-        default_set (dict): [default kwargs]
-        new_set (dict): [a set of new values]
-
-    Returns:
-        dict: [description]
-    """
-    kwargs = dict()
-    for arg in default_set:
-        kwargs[arg] = new_set[arg] if arg in new_set else default_set[arg]
-    return kwargs
-
-
-def convert4json(container):
-    if isinstance(container, dict):
-        for key, value in container.items():
-            container[key] = convert4json(value)
-    elif isinstance(container, list):
-        for idx, value in enumerate(container):
-            container[idx] = convert4json(value)
-    elif isinstance(container, np.ndarray):
-        return container.tolist()
-    elif isinstance(container, Path):
-        return str(container)
-    return container
-
-
 def listdir(dirpath) -> list:
     return [file for file in Path(dirpath).iterdir() if file.is_file()]
-
-
-def is_linux() -> bool:
-    return platform.system() == 'Linux'
 
 
 def copy(srcfile:Path, dst:Path, symbolic=False) -> Path:
@@ -110,3 +69,83 @@ def copy(srcfile:Path, dst:Path, symbolic=False) -> Path:
         dstfile = shutil.copy(srcfile, dst)
 
     return Path(dstfile)
+
+
+#==============================================
+#   Data Conversion
+#==============================================
+def round_container(src, ndigits=4):
+    if isinstance(src, dict):
+        return type(src)((key, round_container(value, ndigits)) for key, value in src.items())
+    if isinstance(src, collections.Container):
+        return type(src)(round_container(value, ndigits) for value in src)
+    if isinstance(src, numbers.Number):
+        return round(src, ndigits)
+    return src
+
+
+def reverse_dict(src:dict) -> dict:
+    return {value:key for key, value in src.items()}
+
+
+def normalize_matrix(mat: np.ndarray, normalize: str='all'):
+    mat_numpy = Types.check_array(mat)
+
+    with np.errstate(all='ignore'):
+        normalized_mat = None
+        sum_mat = None
+        if normalize == 'row':
+            sum_mat = mat_numpy.sum(axis=1, keepdims=True)
+            normalized_mat = mat_numpy / sum_mat
+            sum_mat = np.tile(sum_mat, (1, mat_numpy.shape[1]))
+        elif normalize == 'column':
+            sum_mat = mat_numpy.sum(axis=0, keepdims=True)
+            normalized_mat = mat_numpy / sum_mat
+            sum_mat = np.tile(sum_mat, (mat_numpy.shape[0], 1))
+        elif normalize == 'all':
+            sum_mat = mat_numpy.sum()
+            normalized_mat = mat_numpy / sum_mat
+            sum_mat = np.tile(sum_mat, mat_numpy.shape)
+        normalized_mat = np.nan_to_num(normalized_mat)
+    return normalized_mat, sum_mat
+
+
+def convert4json(container):
+    if isinstance(container, dict):
+        for key, value in container.items():
+            container[key] = convert4json(value)
+    elif isinstance(container, list):
+        for idx, value in enumerate(container):
+            container[idx] = convert4json(value)
+    elif isinstance(container, np.ndarray):
+        return container.tolist()
+    elif isinstance(container, Path):
+        return str(container)
+    return container
+
+
+#==============================================
+#   Dataset
+#==============================================
+def build_idx2labels(*labels: list) -> dict:
+    unique = skutils.unique_labels(*labels)
+    return {idx: label for idx, label in enumerate(unique)}
+
+
+#==============================================
+#   Class
+#==============================================
+def update_kwargs(default_set: dict, new_set: dict) -> dict:
+    """Update only existing key-values of default set with a new set
+
+    Args:
+        default_set (dict): [default kwargs]
+        new_set (dict): [a set of new values]
+
+    Returns:
+        dict: [description]
+    """
+    kwargs = dict()
+    for arg in default_set:
+        kwargs[arg] = new_set[arg] if arg in new_set else default_set[arg]
+    return kwargs

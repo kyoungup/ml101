@@ -133,3 +133,7 @@ dmypy.json
 /data
 # /unittests/data
 proj
+__pycache__
+*/__pycache__
+*/*/__pycache__
+*/.ipynb_checkpoints

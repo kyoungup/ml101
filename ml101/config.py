@@ -3,7 +3,6 @@ from pathlib import Path
 import shutil
 from datetime import datetime
 import ml101.utils as utils
-import os
 
 
 class Project:
