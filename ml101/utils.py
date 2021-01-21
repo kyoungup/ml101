@@ -7,8 +7,7 @@ import numpy as np
 import platform
 import shutil
 import os
-from typing import Union
-from ml101.data import Data, Types
+from ml101.data import Types
 
 
 #==============================================
@@ -124,6 +123,10 @@ def convert4json(container):
     return container
 
 
+def rearrange(containers):
+    return [item for group in zip(*containers) for item in group]
+
+
 #==============================================
 #   Dataset
 #==============================================
@@ -136,7 +139,7 @@ def build_idx2labels(*labels: list) -> dict:
 #   Class
 #==============================================
 def update_kwargs(default_set: dict, new_set: dict) -> dict:
-    """Update only existing key-values of default set with a new set
+    """Update deafult_set with common keys-values from new_set
 
     Args:
         default_set (dict): [default kwargs]
