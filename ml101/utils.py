@@ -3,6 +3,7 @@ from pathlib import Path
 import collections
 import numbers
 import sklearn.utils.multiclass as skutils
+import pandas as pd
 import numpy as np
 import platform
 import shutil
@@ -76,7 +77,7 @@ def copy(srcfile:Path, dst:Path, symbolic=False) -> Path:
 def round_container(src, ndigits=4):
     if isinstance(src, dict):
         return type(src)((key, round_container(value, ndigits)) for key, value in src.items())
-    if isinstance(src, collections.Container):
+    if isinstance(src, str) is False and isinstance(src, collections.Container):
         return type(src)(round_container(value, ndigits) for value in src)
     if isinstance(src, numbers.Number):
         return round(src, ndigits)

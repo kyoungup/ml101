@@ -39,7 +39,6 @@ class Graph(metaclass=ABCMeta):
 
     DEFAULT_FILENAME = 'graph.png'
 
-    # TODO: Input parameter 와 draw 정리
     def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray]=None, kind=None, name=None, ax=None, savepath=None):
         self._data = Types.check_data(data)
         self.kind = kind
@@ -307,63 +306,70 @@ class Count(Graph):
         return self
 
 
-class Interval(Graph):
-    DEFAULT_FILENAME = 'interval.png'
+class Point(Graph):
+    DEFAULT_FILENAME = 'point.png'
 
-    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, confidence=0.95,
-                 ax=None, group=None, size=None, name=None, savepath=None):
-        super().__init__(data=data, name=name, savepath=savepath)
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None, group=None,
+                 join=True, confidence=95, ax=None, name=None, savepath=None):
+        super().__init__(data=data, kind=Graph.POINT, name=name, ax=ax, savepath=savepath)
         self.x = x
-        self.ax = ax
+        self.y = y
         self.group = group
+        self.size = None
+        self.join = join
         self.confidence = confidence
-        self.size = size
+        # setattr more
 
-    def __mean_confidence_interval(self, vec, confidence):
+    def draw(self, ax=None, x=None, y=None, group=None, title=None, xlabel=None, ylabel=None, join=None, confidence=None, **kwargs):
+        data, x, y, group, _ = self._check_inputs(self._data.dataframe, x, y, group, None)
+        if join is None: join = self.join
+        if confidence is None: confidence = self.confidence
+        self.kwargs_ = kwargs.copy()
+        self.kwargs_.update(data=data, hue=group, ax=ax, x=x, y=y, join=join, ci=confidence)
+
+        self.ax = sns.pointplot(**self.kwargs_)
+        
+        self._post_process(ax=self.ax, title=title, xlabel=xlabel, ylabel=ylabel, close=ax is None)
+        return self
+
+
+class Interval(Point):
+    DEFAULT_FILENAME = 'interval.png'
+    # default style
+    DEFAULT_STYLE = dict(scale=0.8,
+                         capsize=0.05,
+                         errwidth=2)
+
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None, group=None, size=None,
+                 confidence=95, join=True, ax=None, name=None, savepath=None):
+        super().__init__(data=data, x=x, y=y, group=group, join=join, confidence=confidence, ax=ax, name=name, savepath=savepath)
+
+    @classmethod
+    def mean_interval(cls, vec:Union[pd.Series, np.array], confidence:float=95) -> list:
+        if confidence > 1: confidence /= 100.0
         m, se = np.mean(vec), stats.sem(vec)
         h = se * stats.t.ppf((1 + confidence) / 2, len(vec)-1)
         return m, m-h, m+h
 
-    def __make_interval_dict(self, data, group, variable, confidence):
-        freq = data[group].value_counts()
+    @classmethod
+    def calc_intervals(cls, data:pd.DataFrame, group:str, variable:str, confidence:float=95) -> dict:
+        freq = data[group].value_counts(sort=False)
         group_info = freq[freq > 2].index.values
 
-        mean_vec = []
-        lower_limit = []
-        upper_limit = []
-
+        intervals = {'category': ['mean', 'lower', 'upper']}
         for gr in group_info:
             temp = data[data[group] == gr][variable]
-            temp_mean, lower, upper = self.__mean_confidence_interval(temp, confidence)
-            mean_vec.append(temp_mean)
-            lower_limit.append(lower)
-            upper_limit.append(upper)
+            intervals[gr] = list(cls.mean_interval(temp, confidence))
 
-        interval_dict = {}
-        interval_dict['category'] = group_info
-        interval_dict['lower'] = lower_limit
-        interval_dict['upper'] = upper_limit
-        interval_dict['mean'] = mean_vec
-        return interval_dict
+        return intervals
 
-    # TODO: implement it again in the proprt way
-    def draw(self, fig=None, ax=None, **kwargs):
-        self.ax = ax
-        self.fig = fig
-
-        intervals = pd.DataFrame(self.__make_interval_dict(self._data.dataframe, self.group, self.x, self.confidence))
-        self.fig, self.ax = plt.subplots()
-        for mean, lower, upper, a in zip(intervals['mean'], intervals['lower'], intervals['upper'], range(len(intervals))):
-            plt.plot((a, a), (lower, upper), '_-', lw=2, markersize=10, markeredgewidth=2, color='tab:blue')
-            plt.plot(a, mean, 'o', color='tab:blue')
-            plt.xticks(range(len(intervals)), list(intervals['category']))
-
-        # self.set_title(fig=plt, title='{:.0f}% Confidence Interval Plot'.format(self.confidence * 100))
-        self.fig.suptitle('{:.0f}% Confidence Interval Plot'.format(self.confidence * 100), fontsize=self.TITLE_SIZE, fontweight=self.TITLE_WEIGHT)
-        self.set_labels(fig=self.ax, yaxis=self.x)
-
-        if ax is None:
-            plt.close()
+    def draw(self, ax=None, x=None, y=None, group=None, title=None, xlabel=None, ylabel=None, join=None, confidence=None, **kwargs):
+        self.kwargs_ = self.DEFAULT_STYLE.copy()
+        self.kwargs_.update(kwargs)
+        if confidence is None: confidence = self.confidence
+        # Set title of figure
+        title = f'{confidence}% Confidence Interval Plot'
+        super().draw(ax=ax, x=x, y=y, group=group, title=title, xlabel=xlabel, ylabel=ylabel, join=join, confidence=confidence, **kwargs)
         return self
 
 
@@ -376,7 +382,7 @@ class Heatmap(Graph):
                         linewidths=0.5)
 
     def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], annot:Union[bool, np.ndarray, pd.DataFrame]=None,
-                name=None, ax=None, savepath=None, **kwargs):
+                name=None, ax=None, savepath=None):
         super().__init__(data=data, kind=Graph.HEATMAP, name=name, ax=ax, savepath=savepath)
         self.annot = annot
 

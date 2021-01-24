@@ -1,11 +1,13 @@
 import unittest
-# import ml101.matplot_backend
+import ml101.matplot_backend
+import pandas as pd
 import numpy as np
 import seaborn as sns
 from pathlib import Path
 from ml101.graphs import Graph, Canvas
 from ml101.graphs import RelPlot, Scatter, Line, Count, Heatmap
 from ml101.graphs import ConfusionMatrixGraph, Interval
+import ml101.utils as utils
 
 
 CWD = Path(__file__).parent
@@ -126,21 +128,27 @@ class TestLine(unittest.TestCase):
         self.g.draw()
         # self.g.show()
         self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()
 
     def test_draw_x_y_None_wideform(self):
         self.savefile = self.gw.draw().save(TEMP)
+        assert self.savefile.exists()
 
     def test_draw_x_None_y_list(self):
         self.savefile = self.g.draw(y = ['year', 'passengers']).save(TEMP)
+        assert self.savefile.exists()
 
     def test_draw_y_None_x_list(self):
         self.savefile = self.g.draw(x = ['year', 'passengers']).save(TEMP)
+        assert self.savefile.exists()
 
     def test_draw_x_series_y_series(self):
         self.savefile = self.g.draw(x = self.flights['month'], y = self.flights['passengers']).save(TEMP)
+        assert self.savefile.exists()
     
     def test_draw_x_str_y_list(self):
         self.savefile = self.g.draw(x = 'year', y = ['passengers', 'month'], title='custom flights').save(TEMP)
+        assert self.savefile.exists()
 
 
 class TestCount(unittest.TestCase):
@@ -156,10 +164,12 @@ class TestCount(unittest.TestCase):
     def test_draw_vertical(self):
         self.g.draw(x="class", group="who")
         self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()
     
     def test_draw_horizental(self):
         self.g.draw(y='class', group='who')
         self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()
 
 
 class TestHeatmap(unittest.TestCase):
@@ -175,6 +185,7 @@ class TestHeatmap(unittest.TestCase):
     def test_graph_heatmap(self):
         self.g.draw(title='Random Correlation')
         self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()
 
 
 class TestConfusionMatrixGraph(unittest.TestCase):
@@ -190,6 +201,7 @@ class TestConfusionMatrixGraph(unittest.TestCase):
     def test_graph_cm(self):
         self.g.draw(suffix='_Random Correlation')
         self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()
 
 
 class TestRelplot(unittest.TestCase):
@@ -204,44 +216,62 @@ class TestRelplot(unittest.TestCase):
     def tearDown(self) -> None:
         if self.savefile and self.savefile.exists():
             self.savefile.unlink()
-        pass
 
     def test_graph_scatter(self):
         self.g.draw(x="total_bill", y="tip", group="smoker", size="size")
         self.savefile = self.g.save()
+        assert self.savefile.exists()
 
     def test_graph_line(self):
         self.lg.draw(kind=Graph.LINE, x="timepoint", y="signal", group="region")
         self.savefile = self.lg.save()
+        assert self.savefile.exists()
 
     def test_draw_x_y_None(self):
         self.savefile = self.g.draw(x=None, y=None, ylabel='tip', title='tips-all').save()
+        assert self.savefile.exists()
 
     def test_draw_x_None_y_list(self):
         self.savefile = self.g.draw(x=None, y=['total_bill', 'tip']).save()
+        assert self.savefile.exists()
 
     def test_draw_y_None_x_list(self):
         self.savefile = self.g.draw(x=['total_bill', 'tip'], y=None).save()
+        assert self.savefile.exists()
 
     def test_draw_x_series_y_series(self):
         self.savefile = self.g.draw(x=self.tips['tip'], y=self.tips['total_bill']).save()
+        assert self.savefile.exists()
 
 
 class TestInterval(unittest.TestCase):
     def setUp(self) -> None:
         self.savefile = None
-        self.dataset = self.tips = sns.load_dataset('iris')
+        self.data = sns.load_dataset('iris')
 
     def tearDown(self) -> None:
         if self.savefile and self.savefile.exists():
             self.savefile.unlink()
 
     def test_draw(self):
-        self.g = Interval(name='PetalLength', data=self.dataset, x='petal_length', group='species')
-        self.g.draw()
+        self.g = Interval(name='PetalLength', data=self.data, x='species', y='petal_length', join=False)
+        self.g.draw(capsize=0.05, scale=0.8, errwidth=2)
         self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()
 
     def test_draw_with_confidence_label(self):
-        self.g = Interval(name='PetalLength_99', data=self.dataset, x='petal_length', group='species', confidence=0.99)
+        self.g = Interval(name='PetalLength_99', data=self.data, x='species', y='petal_length', confidence=99)
         self.g.draw()
         self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()
+
+    def test_calc_interval(self):
+        gt_intervals = {'category': ['mean', 'lower', 'upper'],
+                        'versicolor': [4.26, 4.126452778080923, 4.393547221919077],
+                        'setosa': [1.4620000000000002, 1.412645238352349, 1.5113547616476515],
+                        'virginica': [5.5520000000000005, 5.395153263133577, 5.708846736866424]}
+        intervals = Interval.calc_intervals(self.data, 'species', 'petal_length')
+
+        df_gt = pd.DataFrame(gt_intervals).set_index('category').T.sort_index()
+        df_intervals = pd.DataFrame(intervals).set_index('category').T.sort_index()
+        assert df_gt.round(4).equals(df_intervals.round(4))

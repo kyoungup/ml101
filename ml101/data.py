@@ -34,10 +34,6 @@ class Data:
         return np.asarray(self._dataframe._values, dtype=dtype)
 
     @property
-    def dataset(self) -> pd.DataFrame:
-        return self._dataframe
-
-    @property
     def dataframe(self) -> pd.DataFrame:
         return self._dataframe
         
@@ -115,6 +111,8 @@ class Data:
         else:
             return df_mine.equals(df_given)
 
+    # TODO: implement sort()
+
     def time_series_on(self, colname:str):
         if self.index_time:
             self.time_series_off()
@@ -122,11 +120,13 @@ class Data:
             self._dataframe[colname] = pd.to_datetime(self._dataframe[colname], errors='coerce')
         self._dataframe.set_index(colname, inplace=True)
         self.index_time = colname
+        return self
 
     def time_series_off(self):
         if self.index_time:
             self._dataframe.reset_index(inplace=True)
             self.index_time = None
+        return self
 
     def resolve_dtypes(self) -> pd.DataFrame:
         # TODO: check datetime after convert_dtypes()
