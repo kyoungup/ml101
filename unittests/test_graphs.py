@@ -6,8 +6,8 @@ import seaborn as sns
 from pathlib import Path
 from ml101.graphs import Graph, Canvas
 from ml101.graphs import RelPlot, Scatter, Line, Count, Heatmap
+from ml101.graphs import Histogram
 from ml101.graphs import ConfusionMatrixGraph, Interval
-import ml101.utils as utils
 
 
 CWD = Path(__file__).parent
@@ -275,3 +275,28 @@ class TestInterval(unittest.TestCase):
         df_gt = pd.DataFrame(gt_intervals).set_index('category').T.sort_index()
         df_intervals = pd.DataFrame(intervals).set_index('category').T.sort_index()
         assert df_gt.round(4).equals(df_intervals.round(4))
+
+
+class TestHistogram(unittest.TestCase):
+    def setUp(self) -> None:
+        self.savefile = None
+        self.data = sns.load_dataset('penguins')      # ['species', 'island', 'bill_length_mm', 'bill_depth_mm', 'flipper_length_mm', 'body_mass_g', 'sex']
+
+    def tearDown(self) -> None:
+        if self.savefile and self.savefile.exists():
+            self.savefile.unlink()
+
+    def test_draw(self):
+        self.g = Histogram(name='penguins', data=self.data, x='flipper_length_mm')
+        self.savefile = self.g.draw().save(TEMP)
+        assert self.savefile.exists()
+
+    def test_draw_cols(self):
+        self.g = Histogram(name='penguins', data=self.data, x=['flipper_length_mm', 'body_mass_g'])
+        self.savefile = self.g.draw().save(TEMP)
+        assert self.savefile.exists()
+
+    def test_draw_all(self):
+        self.g = Histogram(name='penguins', data=self.data)
+        self.savefile = self.g.draw(xlabel='All Variables').save(TEMP)
+        assert self.savefile.exists()

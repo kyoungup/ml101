@@ -306,6 +306,32 @@ class Count(Graph):
         return self
 
 
+class Histogram(Graph):
+    DEFAULT_FILENAME = 'histogram.png'
+
+    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None, group=None,
+                 kernel_density=False, log_scale=False, ax=None, name=None, savepath=None):
+        super().__init__(data=data, kind=Graph.HISTOGRAM, name=name, ax=ax, savepath=savepath)
+        self.x = x
+        self.y = y
+        self.group = group
+        self.size = None
+        self.kernel_density = kernel_density
+        self.log_scale = log_scale
+
+    def draw(self, ax=None, x=None, y=None, group=None, kenel_density=None, log_scale=None, title=None, xlabel=None, ylabel=None, **kwargs):
+        data, x, y, group, _ = self._check_inputs(self._data.dataframe, x, y, group, None)
+        if kenel_density is None: kenel_density = self.kernel_density
+        if log_scale is None: log_scale = self.log_scale
+        self.kwargs_ = kwargs.copy()
+        self.kwargs_.update(data=data, hue=group, ax=ax, x=x, y=y, kde=kenel_density, log_scale=log_scale)
+
+        self.ax = sns.histplot(**self.kwargs_)
+        
+        self._post_process(ax=self.ax, title=title, xlabel=xlabel, ylabel=ylabel, close=ax is None)
+        return self
+
+
 class Point(Graph):
     DEFAULT_FILENAME = 'point.png'
 
