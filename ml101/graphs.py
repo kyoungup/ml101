@@ -9,7 +9,7 @@ from scipy import stats
 from typing import Union
 import itertools
 import ml101.utils as utils
-from ml101.data import Data, Types
+from ml101.data import Data, Types, TDATA
 
 
 class Graph(metaclass=ABCMeta):
@@ -39,7 +39,7 @@ class Graph(metaclass=ABCMeta):
 
     DEFAULT_FILENAME = 'graph.png'
 
-    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray]=None, kind=None, name=None, ax=None, savepath=None):
+    def __init__(self, data:TDATA=None, kind=None, name=None, ax=None, savepath=None):
         self._data = Types.check_data(data)
         self.kind = kind
         self.parent = None
@@ -106,7 +106,7 @@ class Graph(metaclass=ABCMeta):
         return self._data
 
     @data.setter
-    def data(self, data):
+    def data(self, data:TDATA):
         self._data = Types.check_data(data)
 
     @abstractmethod
@@ -144,7 +144,7 @@ class Graph(metaclass=ABCMeta):
         return filepath
 
     @classmethod
-    def make_graphs(name, data, kind, xs:list=None, ys:list=None) -> list:
+    def make_graphs(name, data:TDATA, kind, xs:list=None, ys:list=None) -> list:
         data = Types.check_dataframe(data)
         list_ys = ys if ys else data.columns.to_list()
         list_xs = xs if xs else [None]
@@ -156,7 +156,7 @@ class Canvas(Graph):
     TITLE_WEIGHT = 'bold'
     DEFAULT_FILENAME = 'canvas.png'
 
-    def __init__(self, name=None, data:Union[Data, pd.DataFrame, np.ndarray]=None, savepath=None):
+    def __init__(self, name=None, data:TDATA=None, savepath=None):
         super().__init__(data=data, name=name, savepath=savepath)
         self._graphs = list()
 
@@ -240,7 +240,7 @@ class Canvas(Graph):
 class Scatter(Graph):
     DEFAULT_FILENAME = 'scatter.png'
 
-    def __init__(self, data: Union[Data, pd.DataFrame, np.ndarray], x=None, y=None,
+    def __init__(self, data:TDATA, x=None, y=None,
                  group=None, size=None, ax=None, name=None, savepath=None):
         super().__init__(data=data, kind=Graph.SCATTER, name=name, ax=ax, savepath=savepath)
         self.x = x
@@ -263,7 +263,7 @@ class Scatter(Graph):
 class Line(Graph):
     DEFAULT_FILENAME = 'line.png'
 
-    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None,
+    def __init__(self, data:TDATA, x=None, y=None,
                  group=None, size=None, ax=None, name=None, savepath=None):
         super().__init__(data=data, kind=Graph.LINE, name=name, ax=ax, savepath=savepath)
         self.x = x
@@ -286,7 +286,7 @@ class Line(Graph):
 class Count(Graph):
     DEFAULT_FILENAME = 'count.png'
 
-    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None,
+    def __init__(self, data:TDATA, x=None, y=None,
                  group=None, ax=None, name=None, savepath=None):
         super().__init__(data=data, kind=Graph.COUNT, name=name, ax=ax, savepath=savepath)
         self.x = x
@@ -309,7 +309,7 @@ class Count(Graph):
 class Histogram(Graph):
     DEFAULT_FILENAME = 'histogram.png'
 
-    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None, group=None,
+    def __init__(self, data:TDATA, x=None, y=None, group=None,
                  kernel_density=False, log_scale=False, ax=None, name=None, savepath=None):
         super().__init__(data=data, kind=Graph.HISTOGRAM, name=name, ax=ax, savepath=savepath)
         self.x = x
@@ -335,7 +335,7 @@ class Histogram(Graph):
 class Point(Graph):
     DEFAULT_FILENAME = 'point.png'
 
-    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None, group=None,
+    def __init__(self, data:TDATA, x=None, y=None, group=None,
                  join=True, confidence=95, ax=None, name=None, savepath=None):
         super().__init__(data=data, kind=Graph.POINT, name=name, ax=ax, savepath=savepath)
         self.x = x
@@ -366,7 +366,7 @@ class Interval(Point):
                          capsize=0.05,
                          errwidth=2)
 
-    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None, group=None, size=None,
+    def __init__(self, data:TDATA, x=None, y=None, group=None, size=None,
                  confidence=95, join=True, ax=None, name=None, savepath=None):
         super().__init__(data=data, x=x, y=y, group=group, join=join, confidence=confidence, ax=ax, name=name, savepath=savepath)
 
@@ -407,7 +407,7 @@ class Heatmap(Graph):
                         font_size=8,    # annot_kws={'size': 8}
                         linewidths=0.5)
 
-    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], annot:Union[bool, np.ndarray, pd.DataFrame]=None,
+    def __init__(self, data:TDATA, annot:Union[bool, np.ndarray, pd.DataFrame]=None,
                 name=None, ax=None, savepath=None):
         super().__init__(data=data, kind=Graph.HEATMAP, name=name, ax=ax, savepath=savepath)
         self.annot = annot
@@ -469,7 +469,7 @@ class Facet(Graph):
 
 class RelPlot(Facet):
     DEFAULT_FILENAME = 'relplot.png'
-    def __init__(self, data:Union[Data, pd.DataFrame, np.ndarray], x=None, y=None,
+    def __init__(self, data:TDATA, x=None, y=None,
                  group=None, kind=Graph.SCATTER, size=None, name=None, savepath=None):
         super().__init__(data=data, kind=kind, name=name, savepath=savepath)
         self.x = x
@@ -495,7 +495,7 @@ class ConfusionMatrixGraph(Heatmap):
     NORMALIZE_TRUE = 'row'
     NORMALIZE_PRED = 'column'
 
-    def __init__(self, cm:Union[Data, pd.DataFrame, np.ndarray], name=None, idx2label=None, savepath=None):
+    def __init__(self, cm:TDATA, name=None, idx2label=None, savepath=None):
         self.idx2label = idx2label
         if idx2label:
             labels = list(idx2label.values())

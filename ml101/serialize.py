@@ -4,7 +4,7 @@ import pandas as pd
 import openpyxl
 import pickle
 from typing import Union
-from ml101.data import Data, Types
+from ml101.data import Data, Types, TDATA
 
 
 class BaseStream(metaclass=ABCMeta):
@@ -19,7 +19,7 @@ class BaseStream(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def write(self, data:Union[Data, pd.DataFrame], index:bool=False, include_header=True, columns:list=None, **kwargs):
+    def write(self, data:TDATA, index:bool=False, include_header=True, columns:list=None, **kwargs):
         pass
 
 
@@ -43,7 +43,7 @@ class StreamExcel(BaseStream):
         df = pd.read_excel(self.path2file, **kwargs)
         return Data(df)
 
-    def write(self, data:Union[Data, pd.DataFrame], sheet_name:str='Sheet1', append=False, index=False, include_header:bool=True, columns:list=None, **kwargs):
+    def write(self, data:TDATA, sheet_name:str='Sheet1', append=False, index=False, include_header:bool=True, columns:list=None, **kwargs):
         kwargs['sheet_name'] = sheet_name
         kwargs['index'] = index
         kwargs['header'] = include_header
@@ -76,7 +76,7 @@ class StreamCSV(BaseStream):
         df = pd.read_csv(self.path2file, **kwargs)
         return Data(df)
 
-    def write(self, data:Union[Data, pd.DataFrame], index:bool=False, include_header:bool=True, columns:list=None, **kwargs):
+    def write(self, data:TDATA, index:bool=False, include_header:bool=True, columns:list=None, **kwargs):
         kwargs['index'] = index
         kwargs['header'] = include_header
         kwargs['columns'] = columns
@@ -93,7 +93,7 @@ class StreamTSV(StreamCSV):
         kwargs['sep'] = '\t'
         return super().read(pos_header=pos_header, columns=columns, **kwargs)
 
-    def write(self, data:Union[Data, pd.DataFrame], index:bool=False, include_header:bool=True, columns:list=None, **kwargs):
+    def write(self, data:TDATA, index:bool=False, include_header:bool=True, columns:list=None, **kwargs):
         kwargs['sep'] = '\t'
         super().write(data, index=index, include_header=include_header, columns=columns, **kwargs)
 

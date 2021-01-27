@@ -12,7 +12,7 @@ class Data:
     """
     options = dict(resolve_dtypes=True)
     
-    def __init__(self, data=None, columns=None):
+    def __init__(self, data:'TDATA'=None, columns=None):
         # TODO: support time-series - switch time index with flags
         # TODO: check_data should be used and copy meta data
         self._dataframe = Types.check_dataframe(data, columns)
@@ -163,9 +163,14 @@ class Data:
         return repr(self._dataframe)
 
 
+TDATA = Union[pd.DataFrame, np.ndarray, Data, dict]
+TLT = Union[list, pd.Series, pd.Index, np.ndarray]
+TAR = Union[pd.DataFrame, np.ndarray, Data]
+
+
 class Types:
     @classmethod
-    def check_dataframe(cls, data:Union[pd.DataFrame, np.array, Data, dict], columns:list=None) -> pd.DataFrame:
+    def check_dataframe(cls, data: TDATA, columns:list=None) -> pd.DataFrame:
         if isinstance(data, pd.DataFrame):
             return_value = data
         elif isinstance(data, dict):
@@ -184,7 +189,7 @@ class Types:
         return return_value
 
     @classmethod
-    def check_list(cls, data:Union[pd.DataFrame, np.array, Data]) -> list:
+    def check_list(cls, data: TLT) -> list:
         if isinstance(data, list):
             return_value = data
         elif isinstance(data, pd.Series) or isinstance(data, pd.Index):
@@ -199,7 +204,7 @@ class Types:
         return return_value
 
     @classmethod
-    def check_data(cls, data) -> Data:
+    def check_data(cls, data: TDATA) -> Data:
         if isinstance(data, Data):
             return_value = data
         else:
@@ -207,7 +212,7 @@ class Types:
         return return_value
 
     @classmethod
-    def check_array(cls, data) -> np.ndarray:
+    def check_array(cls, data: TAR) -> np.ndarray:
         if isinstance(data, np.ndarray):
             return_value = data
         elif isinstance(data, Data):

@@ -8,7 +8,7 @@ import numpy as np
 import platform
 import shutil
 import os
-from ml101.data import Types
+from ml101.data import Types, TAR
 
 
 #==============================================
@@ -88,7 +88,7 @@ def reverse_dict(src:dict) -> dict:
     return {value:key for key, value in src.items()}
 
 
-def normalize_matrix(mat: np.ndarray, normalize: str='all'):
+def normalize_matrix(mat: TAR, normalize: str='all'):
     mat_numpy = Types.check_array(mat)
 
     with np.errstate(all='ignore'):

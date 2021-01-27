@@ -3,11 +3,11 @@ import numpy as np
 from itertools import accumulate
 from typing import Iterator, Union, Tuple
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, OneHotEncoder
-from ml101.data import Data, Types
+from ml101.data import Data, Types, TDATA
 
 
 class BaseFilter:
-    def __init__(self, data:Union[Data, pd.DataFrame], inplace=True, dropna=True, append=True):
+    def __init__(self, data:TDATA, inplace=True, dropna=True, append=True):
         self._data = Types.check_data(data)
         self.inplace = inplace
         self.delna = dropna
@@ -41,7 +41,7 @@ class BaseFilter:
         return self._data
 
     @data.setter
-    def data(self, data):
+    def data(self, data:TDATA):
         self._data = Types.check_data(data)
 
 
