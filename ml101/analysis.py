@@ -3,7 +3,7 @@ import numpy as np
 from scipy import stats
 from typing import Union
 from ml101.data import Types, TDATA
-from ml101.graphs import Heatmap
+from ml101.graphs import Heatmap, Point
 import ml101.utils as utils
 
 
@@ -125,3 +125,43 @@ class MeanComparison:
 
         print(sig_list)
         return sig_list
+
+
+class Interval(Point):
+    DEFAULT_FILENAME = 'interval.png'
+    # default style
+    DEFAULT_STYLE = dict(scale=0.8,
+                         capsize=0.05,
+                         errwidth=2)
+
+    def __init__(self, data:TDATA, x=None, y=None, group=None, size=None,
+                 confidence=95, join=True, ax=None, name=None, savepath=None):
+        super().__init__(data=data, x=x, y=y, group=group, join=join, confidence=confidence, ax=ax, name=name, savepath=savepath)
+
+    @classmethod
+    def mean_interval(cls, vec:Union[pd.Series, np.array], confidence:float=95) -> list:
+        if confidence > 1: confidence /= 100.0
+        m, se = np.mean(vec), stats.sem(vec)
+        h = se * stats.t.ppf((1 + confidence) / 2, len(vec)-1)
+        return m, m-h, m+h
+
+    @classmethod
+    def calc_intervals(cls, data:pd.DataFrame, group:str, variable:str, confidence:float=95) -> dict:
+        freq = data[group].value_counts(sort=False)
+        group_info = freq[freq > 2].index.values
+
+        intervals = {'category': ['mean', 'lower', 'upper']}
+        for gr in group_info:
+            temp = data[data[group] == gr][variable]
+            intervals[gr] = list(cls.mean_interval(temp, confidence))
+
+        return intervals
+
+    def draw(self, ax=None, x=None, y=None, group=None, title=None, xlabel=None, ylabel=None, join=None, confidence=None, **kwargs):
+        self.kwargs_ = self.DEFAULT_STYLE.copy()
+        self.kwargs_.update(kwargs)
+        if confidence is None: confidence = self.confidence
+        # Set title of figure
+        title = f'{confidence}% Confidence Interval Plot'
+        super().draw(ax=ax, x=x, y=y, group=group, title=title, xlabel=xlabel, ylabel=ylabel, join=join, confidence=confidence, **kwargs)
+        return self

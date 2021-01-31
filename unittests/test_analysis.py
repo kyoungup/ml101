@@ -1,9 +1,11 @@
 import unittest
 from pathlib import Path
-
+import seaborn as sns
+import pandas as pd
 from ml101.serialize import Stream
 from ml101.analysis import Correlation
 from ml101.analysis import MeanComparison
+from ml101.analysis import Interval
 
 
 CWD = Path(__file__).parent
@@ -71,3 +73,36 @@ class TestMeanComparison(unittest.TestCase):
         self.mc.data.dataframe = df[df['species'] != 'setosa']
         Significant_variables = self.mc.siginificant_variables(group='species', threshold=1e-40, cols=['sepal_width', 'petal_length'])
         assert len(Significant_variables) == 0
+
+
+class TestInterval(unittest.TestCase):
+    def setUp(self) -> None:
+        self.savefile = None
+        self.data = sns.load_dataset('iris')
+
+    def tearDown(self) -> None:
+        if self.savefile and self.savefile.exists():
+            self.savefile.unlink()
+
+    def test_draw(self):
+        self.g = Interval(name='PetalLength', data=self.data, x='species', y='petal_length', join=False)
+        self.g.draw(capsize=0.05, scale=0.8, errwidth=2)
+        self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()
+
+    def test_draw_with_confidence_label(self):
+        self.g = Interval(name='PetalLength_99', data=self.data, x='species', y='petal_length', confidence=99)
+        self.g.draw()
+        self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()
+
+    def test_calc_interval(self):
+        gt_intervals = {'category': ['mean', 'lower', 'upper'],
+                        'versicolor': [4.26, 4.126452778080923, 4.393547221919077],
+                        'setosa': [1.4620000000000002, 1.412645238352349, 1.5113547616476515],
+                        'virginica': [5.5520000000000005, 5.395153263133577, 5.708846736866424]}
+        intervals = Interval.calc_intervals(self.data, 'species', 'petal_length')
+
+        df_gt = pd.DataFrame(gt_intervals).set_index('category').T.sort_index()
+        df_intervals = pd.DataFrame(intervals).set_index('category').T.sort_index()
+        assert df_gt.round(4).equals(df_intervals.round(4))

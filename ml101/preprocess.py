@@ -135,7 +135,7 @@ class Removal(BaseFilter):
         if inplace is None: inplace = self.inplace
         return self._postprocess(new_df, inplace=inplace, append=False, dropna=False)
 
-    def drop_outliers(self, columns: list = None, drop_region: str='both', inplace=None):
+    def drop_outliers(self, cols: list = None, drop_region: str='both', inplace=None):
         """Removes outliers from
 
         Args:
@@ -146,15 +146,15 @@ class Removal(BaseFilter):
                 upper: only the outliers in upper part are removed.
         """
         # TODO: to be extended to other methods
-        if columns is None:
-            columns = self._data.dataframe.columns
+        if cols is None:
+            df = self._data.dataframe
+        else:
+            df = self._data.dataframe[cols]
 
         DISCERN_CONSTANT = 1.5
         Q1 = 0.25
         Q3 = 0.75
-
-        df = self._data.dataframe[columns]
-        # df.dropna(inplace=self.inplace)     # PKU: 이 작업이 필요할까? 원래 데이터와 달라질 수 있지 않을까?
+        
         q1 = df.quantile(Q1)
         q3 = df.quantile(Q3)
         outlier_margin = (q3-q1) * DISCERN_CONSTANT

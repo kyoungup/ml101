@@ -6,6 +6,7 @@ from ml101.evaluation import Scores
 from ml101.evaluation import CScores, CAggr
 from ml101.evaluation import RScores, RAggr
 from ml101.evaluation import SimpleScores
+from ml101.evaluation import ConfusionMatrixGraph
 import ml101.utils as utils
 
 
@@ -254,3 +255,19 @@ class TestSimpleScores(unittest.TestCase):
         self.scores.save()
         assert (TEMP / 'test_scores.json').exists()
         assert (TEMP / 'test_aggregation.json').exists()
+
+
+class TestConfusionMatrixGraph(unittest.TestCase):
+    def setUp(self):
+        self.savefile = None
+        self.data = (np.random.rand(10, 10) * 100).astype(int)
+        self.g = ConfusionMatrixGraph(cm=self.data, name='corr')
+
+    def tearDown(self) -> None:
+        if self.savefile and self.savefile.exists():
+            self.savefile.unlink()
+
+    def test_graph_cm(self):
+        self.g.draw(suffix='_Random Correlation')
+        self.savefile = self.g.save(TEMP)
+        assert self.savefile.exists()

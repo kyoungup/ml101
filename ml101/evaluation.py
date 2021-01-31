@@ -8,7 +8,10 @@ from sklearn.metrics import explained_variance_score, mean_absolute_error
 from sklearn.metrics import mean_squared_error, mean_squared_log_error
 from sklearn.metrics import median_absolute_error, r2_score
 import numpy as np
+import itertools
 import ml101.utils as utils
+from ml101.graphs import Heatmap
+from ml101.data import TDATA
 
 
 class Scores(metaclass=ABCMeta):
@@ -364,3 +367,39 @@ class SimpleScores:
         with aggregate_file.open(mode='w') as f:
             json.dump({'means': self.scores_mean,
                         'std': self.scores_std}, f, indent=4)
+
+
+class ConfusionMatrixGraph(Heatmap):
+    DEFAULT_FILENAME = 'confusion_matrix.png'
+    NORMALIZE_ALL = 'all'
+    NORMALIZE_TRUE = 'row'
+    NORMALIZE_PRED = 'column'
+
+    def __init__(self, cm:TDATA, name=None, idx2label=None, savepath=None):
+        self.idx2label = idx2label
+        if idx2label:
+            labels = list(idx2label.values())
+            cm = pd.DataFrame(cm, index=labels, columns=labels)
+        super().__init__(data=cm, name=name, savepath=savepath)
+        
+    def draw(self, suffix=None, normalize=NORMALIZE_TRUE, **kwargs):
+        # Set title of figure
+        title = f'Confusion Matrix{suffix}' if suffix else 'Confusion Matrix'
+
+        cm = self._data.dataframe
+        # normalize
+        cm_normalized, cm_sum = utils.normalize_matrix(cm, normalize)
+
+        annot = np.empty_like(cm).astype(str)
+        for row, col in itertools.product(range(cm_normalized.shape[0]), range(cm_normalized.shape[1])):
+            value = cm.iloc[row, col]
+            normalized_value = cm_normalized[row, col]
+            annot[row, col] = f'{normalized_value:.2%}\n{value}'
+            if row == col:
+                annot[row, col] += f'/{cm_sum[row, col]}'
+
+        self.annot = annot
+        self.data = cm_normalized
+        super().draw(title=title, xlabel='Predicted labels', ylabel='True labels', **kwargs)
+        self.data = cm
+        return self

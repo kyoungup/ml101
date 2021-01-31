@@ -9,7 +9,7 @@ from scipy import stats
 from typing import Union
 import itertools
 import ml101.utils as utils
-from ml101.data import Data, Types, TDATA
+from ml101.data import Types, TDATA
 
 
 class Graph(metaclass=ABCMeta):
@@ -359,46 +359,6 @@ class Point(Graph):
         return self
 
 
-class Interval(Point):
-    DEFAULT_FILENAME = 'interval.png'
-    # default style
-    DEFAULT_STYLE = dict(scale=0.8,
-                         capsize=0.05,
-                         errwidth=2)
-
-    def __init__(self, data:TDATA, x=None, y=None, group=None, size=None,
-                 confidence=95, join=True, ax=None, name=None, savepath=None):
-        super().__init__(data=data, x=x, y=y, group=group, join=join, confidence=confidence, ax=ax, name=name, savepath=savepath)
-
-    @classmethod
-    def mean_interval(cls, vec:Union[pd.Series, np.array], confidence:float=95) -> list:
-        if confidence > 1: confidence /= 100.0
-        m, se = np.mean(vec), stats.sem(vec)
-        h = se * stats.t.ppf((1 + confidence) / 2, len(vec)-1)
-        return m, m-h, m+h
-
-    @classmethod
-    def calc_intervals(cls, data:pd.DataFrame, group:str, variable:str, confidence:float=95) -> dict:
-        freq = data[group].value_counts(sort=False)
-        group_info = freq[freq > 2].index.values
-
-        intervals = {'category': ['mean', 'lower', 'upper']}
-        for gr in group_info:
-            temp = data[data[group] == gr][variable]
-            intervals[gr] = list(cls.mean_interval(temp, confidence))
-
-        return intervals
-
-    def draw(self, ax=None, x=None, y=None, group=None, title=None, xlabel=None, ylabel=None, join=None, confidence=None, **kwargs):
-        self.kwargs_ = self.DEFAULT_STYLE.copy()
-        self.kwargs_.update(kwargs)
-        if confidence is None: confidence = self.confidence
-        # Set title of figure
-        title = f'{confidence}% Confidence Interval Plot'
-        super().draw(ax=ax, x=x, y=y, group=group, title=title, xlabel=xlabel, ylabel=ylabel, join=join, confidence=confidence, **kwargs)
-        return self
-
-
 class Heatmap(Graph):
     DEFAULT_FILENAME = 'heatmap.png'
     # default style
@@ -486,40 +446,4 @@ class RelPlot(Facet):
         self.fig = sns.relplot(**self.kwargs_)
 
         self._post_process(fig=self.fig, title=title, xlabel=xlabel, ylabel=ylabel, close=False)
-        return self
-
-
-class ConfusionMatrixGraph(Heatmap):
-    DEFAULT_FILENAME = 'confusion_matrix.png'
-    NORMALIZE_ALL = 'all'
-    NORMALIZE_TRUE = 'row'
-    NORMALIZE_PRED = 'column'
-
-    def __init__(self, cm:TDATA, name=None, idx2label=None, savepath=None):
-        self.idx2label = idx2label
-        if idx2label:
-            labels = list(idx2label.values())
-            cm = pd.DataFrame(cm, index=labels, columns=labels)
-        super().__init__(data=cm, name=name, savepath=savepath)
-        
-    def draw(self, suffix=None, normalize=NORMALIZE_TRUE, **kwargs):
-        # Set title of figure
-        title = f'Confusion Matrix{suffix}' if suffix else 'Confusion Matrix'
-
-        cm = self._data.dataframe
-        # normalize
-        cm_normalized, cm_sum = utils.normalize_matrix(cm, normalize)
-
-        annot = np.empty_like(cm).astype(str)
-        for row, col in itertools.product(range(cm_normalized.shape[0]), range(cm_normalized.shape[1])):
-            value = cm.iloc[row, col]
-            normalized_value = cm_normalized[row, col]
-            annot[row, col] = f'{normalized_value:.2%}\n{value}'
-            if row == col:
-                annot[row, col] += f'/{cm_sum[row, col]}'
-
-        self.annot = annot
-        self.data = cm_normalized
-        super().draw(title=title, xlabel='Predicted labels', ylabel='True labels', **kwargs)
-        self.data = cm
         return self
