@@ -15,7 +15,7 @@ class BaseStream(metaclass=ABCMeta):
         self.path2file = Path(pathe2file)
 
     @abstractmethod
-    def read(self, pos_header:int=0, columns:Union[str,list,int]=None, **kwargs):
+    def read(self, pos_header:int=0, columns:Union[str,list,int]=None, **kwargs) -> Data:
         pass
 
     @abstractmethod
@@ -112,7 +112,7 @@ class StreamPickle(BaseStream):
             pickle.dump(data, f, **kwargs)
 
 
-class Stream:
+class Stream(BaseStream):
         """This is a factory class to detect file formats by file extention and make a proper instance for serialization
 
         Raises:
@@ -121,7 +121,7 @@ class Stream:
         Returns:
             DataStream: a file reader/writer for the specified file format
         """
-        def __new__(cls, path2file):
+        def __new__(cls, path2file) -> BaseStream:
             assert path2file
             path2file = Path(path2file)
 

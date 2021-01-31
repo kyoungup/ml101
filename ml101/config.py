@@ -1,6 +1,5 @@
 import ml101.matplot_backend
 from pathlib import Path
-import shutil
 from datetime import datetime
 import ml101.utils as utils
 
@@ -98,4 +97,20 @@ class Project:
         # copy the raw file to this project
         return utils.copy(srcfile, self.loc_databank, symbolic=symbolic)
 
-ENV = Project()
+
+if __name__ == '__main__':
+    import argparse
+
+    def init_argparse() -> argparse.ArgumentParser:
+        parser = argparse.ArgumentParser(
+            usage = '%(prog)s [OPTION]...'
+        )
+        parser.add_argument('-n', '--new')
+        return parser
+
+
+    parser = init_argparse()
+    args = parser.parse_args()
+
+    if len(args.new) and args.new != __package__:
+        Project(args.new).new()

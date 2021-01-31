@@ -128,6 +128,18 @@ class Data:
             self.index_time = None
         return self
 
+    @property
+    def numeric_cols(self) -> pd.Index:
+        df = self._dataframe
+        # variables = pd.Series(df.columns)
+        cols = df.columns
+        idx_numerics = []
+        for idx, col in enumerate(cols):
+            if (df[col].dtypes == 'int64' or df[col].dtype == 'float64'):
+                idx_numerics.append(idx)
+        cols = cols[idx_numerics]
+        return cols
+
     def resolve_dtypes(self) -> pd.DataFrame:
         # TODO: check datetime after convert_dtypes()
         return self._dataframe.convert_dtypes().dtypes
